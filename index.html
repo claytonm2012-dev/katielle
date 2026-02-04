@@ -1,374 +1,248 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Consultoria Dos Sonhos</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Plataforma de Treinos</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- LOGIN -->
-  <main id="loginScreen" class="login-wrap">
-    <div class="login-card pro">
+<!-- ================= LOGIN ================= -->
+<section id="loginScreen" class="login">
+  <div class="login-card">
 
-      <div class="login-brand">
-        <div class="brand-dot"></div>
-        <div>
-          <h1>Consultoria Dos Sonhos</h1>
-          <p class="muted">Katielle Amaral</p>
-        </div>
-      </div>
-
-      <div class="login-tabs" role="tablist">
-        <button class="tab active" id="tabAdmin" type="button">Acesso ADM</button>
-        <button class="tab" id="tabAluno" type="button">Acesso Aluno</button>
-      </div>
-
-      <!-- FORM ADM -->
-      <section id="formAdmin" class="login-form">
-        <div class="field">
-          <label class="lbl">Usuário</label>
-          <input id="loginUser" class="inp" placeholder="admin" autocomplete="username" />
-        </div>
-        <div class="field">
-          <label class="lbl">Senha</label>
-          <input id="loginPass" class="inp" placeholder="••••••••" type="password" autocomplete="current-password" />
-        </div>
-        <button class="btn primary w100" id="btnLoginAdmin">Entrar como ADM</button>
-      </section>
-
-      <!-- FORM ALUNO -->
-      <section id="formAluno" class="login-form hidden">
-        <div class="field">
-          <label class="lbl">Usuário do aluno</label>
-          <input id="studentUserLogin" class="inp" placeholder="ex: joao.silva" autocomplete="username" />
-        </div>
-        <div class="field">
-          <label class="lbl">Senha do aluno</label>
-          <input id="studentPassLogin" class="inp" placeholder="••••••••" type="password" autocomplete="current-password" />
-        </div>
-        <button class="btn primary w100" id="btnLoginAluno">Entrar como Aluno</button>
-        <p class="muted small mt">* O aluno é criado pelo ADM.</p>
-      </section>
-
-      <p id="loginMsg" class="msg"></p>
-
-      <div class="login-footer">
-        <span class="pill" id="loginPill">Seguro • Visual Profissional</span>
+    <div class="brand">
+      <div class="logo-dot"></div>
+      <div>
+        <h1>Consultoria Fitness</h1>
+        <p>Painel de Treinos</p>
       </div>
     </div>
-  </main>
 
-  <!-- APP -->
-  <div id="app" class="app hidden">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-dot"></div>
-        <div>
-          <div class="brand-title">Consultoria</div>
-          <div class="brand-sub" id="roleSub">Painel</div>
-        </div>
-      </div>
+    <div class="tabs">
+      <button id="tabAdmin" class="tab active" type="button">ADM</button>
+      <button id="tabAluno" class="tab" type="button">Aluno</button>
+    </div>
 
-      <nav class="menu" id="menuAdmin">
-        <button class="menu-item active" data-view="dashboard">Dashboard</button>
-        <button class="menu-item" data-view="alunos">Alunos</button>
-        <button class="menu-item" data-view="exercicios">Exercícios</button>
-        <button class="menu-item" data-view="treinos">Treinos</button>
-        <button class="menu-item" data-view="backup">Backup</button>
-      </nav>
+    <div id="loginMsg" class="login-msg"></div>
 
-      <!-- MENU DO ALUNO -->
-      <nav class="menu hidden" id="menuAluno">
-        <button class="menu-item active" data-view="meutreino">Meu Treino</button>
-      </nav>
+    <!-- ADMIN -->
+    <div id="formAdmin">
+      <label>Usuário</label>
+      <input id="loginUser" type="text" placeholder="admin">
+      <label>Senha</label>
+      <input id="loginPass" type="password">
+      <button id="btnLoginAdmin" class="btn primary full">Entrar como ADM</button>
+    </div>
 
-      <div class="sidebar-footer">
-        <button class="btn ghost" id="btnLogout">Sair</button>
-      </div>
-    </aside>
+    <!-- ALUNO -->
+    <div id="formAluno" class="hidden">
+      <label>Usuário</label>
+      <input id="studentUserLogin" type="text">
+      <label>Senha</label>
+      <input id="studentPassLogin" type="password">
+      <button id="btnLoginAluno" class="btn primary full">Entrar como Aluno</button>
+    </div>
 
-    <section class="content">
-      <header class="topbar">
-        <div>
-          <h2 id="viewTitle">Painel</h2>
-          <p class="muted small" id="welcomeLine"></p>
-        </div>
-        <div class="top-actions">
-          <span class="pill" id="statusPill">OK</span>
-        </div>
-      </header>
-
-      <!-- DASHBOARD -->
-      <section id="view-dashboard" class="view">
-        <div class="grid">
-          <div class="card">
-            <div class="card-title">Alunos</div>
-            <div class="big" id="dashStudents">0</div>
-            <div class="muted">Total cadastrados</div>
-          </div>
-          <div class="card">
-            <div class="card-title">Exercícios</div>
-            <div class="big" id="dashExercises">0</div>
-            <div class="muted">Itens no catálogo</div>
-          </div>
-          <div class="card">
-            <div class="card-title">Treinos</div>
-            <div class="big" id="dashPlans">0</div>
-            <div class="muted">Dias/planos criados</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ALUNOS -->
-      <section id="view-alunos" class="view hidden">
-        <div class="card">
-          <div class="card-title">Cadastrar aluno (com login)</div>
-
-          <div class="row gap wrap">
-            <div class="field grow">
-              <label class="lbl">Nome</label>
-              <input id="studentName" class="inp" placeholder="Ex: João Silva" />
-            </div>
-
-            <div class="field">
-              <label class="lbl">Plano</label>
-              <select id="studentPlan" class="inp">
-                <option value="3">3 meses</option>
-                <option value="6">6 meses</option>
-                <option value="12">1 ano</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row gap wrap mt">
-            <div class="field">
-              <label class="lbl">Usuário (login do aluno)</label>
-              <input id="studentUser" class="inp" placeholder="ex: joao.silva" />
-            </div>
-            <div class="field">
-              <label class="lbl">Senha (login do aluno)</label>
-              <input id="studentPass" class="inp" placeholder="crie uma senha" type="password" />
-            </div>
-
-            <button class="btn primary" id="btnAddStudent">Criar aluno</button>
-          </div>
-
-          <p class="muted small mt">
-            Dica: anote usuário/senha do aluno e envie para ele.
-          </p>
-        </div>
-
-        <div class="card mt">
-          <div class="card-title">Lista de alunos</div>
-          <div class="table-wrap">
-            <table class="table" id="studentsTable">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Usuário</th>
-                  <th>Plano</th>
-                  <th>Vence em</th>
-                  <th>Status</th>
-                  <th class="right">Ações</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- EXERCÍCIOS -->
-      <section id="view-exercicios" class="view hidden">
-        <div class="card">
-          <div class="card-title">Adicionar exercício</div>
-          <div class="row gap wrap mt">
-  <button class="btn" id="btnBulkToggle">Adicionar em lote</button>
-  <button class="btn danger" id="btnDeleteByGroup">Excluir todos do grupo</button>
-  <button class="btn danger" id="btnDeleteAllExercises">Excluir TODOS exercícios</button>
-</div>
-
-<div id="bulkBox" class="hidden mt">
-  <p class="muted small">Cole 1 exercício por linha. Exemplo: “Supino reto (barra)”</p>
-  <textarea id="bulkText" class="textarea" placeholder="Cole aqui..."></textarea>
-  <div class="row gap wrap mt">
-    <button class="btn primary" id="btnBulkSave">Salvar lote no grupo selecionado</button>
-    <button class="btn" id="btnBulkCancel">Cancelar</button>
+    <p class="login-foot">Acesso do aluno é criado pelo administrador.</p>
   </div>
-</div>
+</section>
 
-          <div class="row gap wrap">
-            <div class="field">
-              <label class="lbl">Grupo</label>
-              <select id="exGroup" class="inp"></select>
-            </div>
+<!-- ================= APP ================= -->
+<section id="app" class="app hidden">
 
-            <div class="field grow">
-              <label class="lbl">Nome do exercício</label>
-              <input id="exName" class="inp" placeholder="Ex: Supino Reto" />
-            </div>
-
-            <div class="field grow">
-              <label class="lbl">Link do YouTube (opcional)</label>
-              <input id="exYoutube" class="inp" placeholder="https://youtu.be/..." />
-            </div>
-
-            <button class="btn primary" id="btnAddExercise">Adicionar</button>
-          </div>
-        </div>
-
-        <div class="card mt">
-          <div class="row between wrap gap">
-            <div class="card-title">Catálogo</div>
-            <div class="row gap wrap">
-              <select id="filterGroup" class="inp"></select>
-              <input id="searchExercise" class="inp" placeholder="Pesquisar..." />
-            </div>
-          </div>
-
-          <div class="table-wrap">
-            <table class="table" id="exercisesTable">
-              <thead>
-                <tr>
-                  <th>Grupo</th>
-                  <th>Exercício</th>
-                  <th>Vídeo</th>
-                  <th class="right">Ações</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- TREINOS (ADM) -->
-      <section id="view-treinos" class="view hidden">
-        <div class="card">
-          <div class="card-title">Montar treino individual</div>
-
-          <div class="row gap wrap">
-            <div class="field">
-              <label class="lbl">Aluno</label>
-              <select id="planStudent" class="inp"></select>
-            </div>
-
-            <div class="field">
-              <label class="lbl">Dia/Bloco</label>
-              <select id="planDay" class="inp">
-                <option>Segunda</option><option>Terça</option><option>Quarta</option>
-                <option>Quinta</option><option>Sexta</option><option>Sábado</option><option>Domingo</option>
-                <option>A</option><option>B</option><option>C</option><option>D</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label class="lbl">Grupo</label>
-              <select id="planGroup" class="inp"></select>
-            </div>
-
-            <div class="field grow">
-              <label class="lbl">Exercício</label>
-              <select id="planExercise" class="inp"></select>
-            </div>
-          </div>
-
-          <div class="row gap wrap mt">
-            <div class="field">
-              <label class="lbl">Séries</label>
-              <input id="planSets" class="inp" type="number" min="1" value="3" />
-            </div>
-            <div class="field">
-              <label class="lbl">Reps</label>
-              <input id="planReps" class="inp" placeholder="8-12" />
-            </div>
-            <div class="field">
-              <label class="lbl">Descanso</label>
-              <input id="planRest" class="inp" placeholder="60s" />
-            </div>
-            <div class="field grow">
-              <label class="lbl">Observação</label>
-              <input id="planNote" class="inp" placeholder="Ex: controlar descida" />
-            </div>
-
-            <button class="btn primary" id="btnAddToPlan">Adicionar ao treino</button>
-          </div>
-        </div>
-
-        <div class="card mt">
-          <div class="row between wrap gap">
-            <div class="card-title">Treino do aluno</div>
-            <div class="row gap wrap">
-              <button class="btn" id="btnClearDay">Limpar este dia</button>
-              <button class="btn danger" id="btnClearAllPlans">Apagar todos os treinos do aluno</button>
-            </div>
-          </div>
-
-          <div id="planPreview" class="plan-preview"></div>
-        </div>
-      </section>
-
-      <!-- MEU TREINO (ALUNO) -->
-      <section id="view-meutreino" class="view hidden">
-        <div class="card">
-          <div class="card-title">Meu Treino</div>
-          <p class="muted">Aqui aparece o treino montado pelo seu personal.</p>
-          <div id="studentPlanPreview" class="plan-preview mt"></div>
-        </div>
-      </section>
-
-      <!-- BACKUP -->
-      <section id="view-backup" class="view hidden">
-        <div class="card">
-          <div class="card-title">Backup / Restaurar</div>
-          <p class="muted">Como é GitHub Pages (sem banco), faça backup para não perder.</p>
-
-          <div class="row gap wrap mt">
-            <button class="btn primary" id="btnExport">Exportar JSON</button>
-            <label class="btn" for="importFile" style="cursor:pointer;">Importar JSON</label>
-            <input id="importFile" type="file" accept="application/json" hidden />
-          </div>
-
-          <textarea id="backupText" class="textarea mt" placeholder="Aqui aparece o JSON exportado..."></textarea>
-        </div>
-      </section>
-
-      <!-- MODAL EDIT EXERCICIO -->
-      <div id="modal" class="modal hidden">
-        <div class="modal-card">
-          <div class="row between wrap gap">
-            <h3 class="modal-title">Editar exercício</h3>
-            <button class="btn ghost" id="btnCloseModal">Fechar</button>
-          </div>
-
-          <div class="row gap wrap mt">
-            <div class="field">
-              <label class="lbl">Grupo</label>
-              <select id="editGroup" class="inp"></select>
-            </div>
-            <div class="field grow">
-              <label class="lbl">Nome</label>
-              <input id="editName" class="inp" />
-            </div>
-            <div class="field grow">
-              <label class="lbl">YouTube</label>
-              <input id="editYoutube" class="inp" />
-            </div>
-          </div>
-
-          <div class="row gap mt right wrap">
-            <button class="btn danger" id="btnDeleteExercise">Excluir</button>
-            <button class="btn primary" id="btnSaveExercise">Salvar</button>
-          </div>
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="logo">
+        <div class="logo-dot"></div>
+        <div>
+          <div class="logo-title">Painel</div>
+          <div id="roleSub" class="logo-sub">—</div>
         </div>
       </div>
+      <div id="statusPill" class="status">OK</div>
+    </div>
 
+    <!-- MENU ADM -->
+    <nav id="menuAdmin" class="menu">
+      <button class="menu-item active" data-view="dashboard">Dashboard</button>
+      <button class="menu-item" data-view="alunos">Alunos</button>
+      <button class="menu-item" data-view="exercicios">Exercícios</button>
+      <button class="menu-item" data-view="treinos">Treinos</button>
+      <button class="menu-item" data-view="backup">Backup</button>
+    </nav>
+
+    <!-- MENU ALUNO -->
+    <nav id="menuAluno" class="menu hidden">
+      <button class="menu-item active" data-view="meutreino">Meu Treino</button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button id="btnLogout" class="btn danger full">Sair</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+
+    <header class="topbar">
+      <div>
+        <h2 id="viewTitle">Dashboard</h2>
+        <p id="welcomeLine" class="muted">—</p>
+      </div>
+    </header>
+
+    <!-- ===== DASHBOARD ===== -->
+    <section id="view-dashboard" class="view">
+      <div class="grid3">
+        <div class="card">
+          <div class="card-title">Alunos</div>
+          <div id="dashStudents" class="big">0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Exercícios</div>
+          <div id="dashExercises" class="big">0</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Dias/Blocos</div>
+          <div id="dashPlans" class="big">0</div>
+        </div>
+      </div>
     </section>
-  </div>
 
-  <script src="app.js"></script>
+    <!-- ===== ALUNOS ===== -->
+    <section id="view-alunos" class="view hidden">
+      <div class="card">
+        <h3>Criar Aluno</h3>
+        <div class="row wrap gap">
+          <input id="studentName" placeholder="Nome">
+          <input id="studentUser" placeholder="Usuário">
+          <input id="studentPass" placeholder="Senha">
+          <select id="studentPlan">
+            <option value="3">3 meses</option>
+            <option value="6">6 meses</option>
+            <option value="12">12 meses</option>
+          </select>
+          <button id="btnAddStudent" class="btn primary">Criar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Alunos</h3>
+        <table id="studentsTable">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Usuário</th>
+              <th>Plano</th>
+              <th>Vencimento</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== EXERCÍCIOS ===== -->
+    <section id="view-exercicios" class="view hidden">
+      <div class="card">
+        <h3>Exercícios</h3>
+
+        <div class="row wrap gap">
+          <select id="exGroup"></select>
+          <input id="exName" placeholder="Nome do exercício">
+          <input id="exYoutube" placeholder="Link YouTube">
+          <button id="btnAddExercise" class="btn primary">Adicionar</button>
+        </div>
+
+        <div class="row wrap gap mt">
+          <button id="btnBulkToggle" class="btn">Adicionar em lote</button>
+        </div>
+
+        <div id="bulkBox" class="hidden mt">
+          <textarea id="bulkText" placeholder="1 exercício por linha"></textarea>
+          <button id="btnBulkSave" class="btn primary">Salvar lote</button>
+          <button id="btnBulkCancel" class="btn">Cancelar</button>
+        </div>
+
+        <hr>
+
+        <div class="row wrap gap">
+          <select id="filterGroup"></select>
+          <input id="searchExercise" placeholder="Buscar exercício">
+        </div>
+
+        <table id="exercisesTable">
+          <thead>
+            <tr>
+              <th>Grupo</th>
+              <th>Exercício</th>
+              <th>Vídeo</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== TREINOS ===== -->
+    <section id="view-treinos" class="view hidden">
+      <div class="card">
+        <h3>Montar Treino</h3>
+
+        <div class="row wrap gap">
+          <select id="planStudent"></select>
+
+          <select id="planDay"></select>
+          <button id="btnAddModel" class="btn">+ Modelo</button>
+
+          <select id="planGroup"></select>
+          <select id="planExercise"></select>
+
+          <input id="planSets" placeholder="Séries">
+          <input id="planReps" placeholder="Reps">
+          <input id="planRest" placeholder="Descanso">
+          <input id="planNote" placeholder="Observação">
+
+          <button id="btnAddToPlan" class="btn primary">Adicionar</button>
+        </div>
+
+        <div class="row gap mt">
+          <button id="btnClearDay" class="btn danger">Limpar Dia</button>
+          <button id="btnClearAllPlans" class="btn danger">Apagar Treinos</button>
+        </div>
+
+        <div id="planPreview" class="mt"></div>
+      </div>
+    </section>
+
+    <!-- ===== BACKUP ===== -->
+    <section id="view-backup" class="view hidden">
+      <div class="card">
+        <h3>Backup</h3>
+        <button id="btnExport" class="btn primary">Exportar</button>
+        <input id="importFile" type="file" accept=".json">
+        <textarea id="backupText"></textarea>
+      </div>
+    </section>
+
+    <!-- ===== MEU TREINO (ALUNO) ===== -->
+    <section id="view-meutreino" class="view hidden">
+      <div class="card">
+        <h3>Meu Treino</h3>
+        <div id="studentPlanPreview"></div>
+      </div>
+    </section>
+
+  </main>
+</section>
+
+<script src="app.js"></script>
 </body>
 </html>
 
