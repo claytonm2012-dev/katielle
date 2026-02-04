@@ -810,4 +810,116 @@ function bindEvents(){
     $("#app").classList.add("hidden");
   }
 })();
+// ====== EXTRA: ADD/REMOVE AVANÇADO (SEM MEXER NO RESTO) ======
+(function extraExerciseTools(){
+  const btnBulkToggle = document.getElementById("btnBulkToggle");
+  const bulkBox = document.getElementById("bulkBox");
+  const bulkText = document.getElementById("bulkText");
+  const btnBulkSave = document.getElementById("btnBulkSave");
+  const btnBulkCancel = document.getElementById("btnBulkCancel");
+
+  const btnDeleteByGroup = document.getElementById("btnDeleteByGroup");
+  const btnDeleteAll = document.getElementById("btnDeleteAllExercises");
+
+  if(!btnBulkToggle) return;
+
+  function normalizeName(s){
+    return (s||"").trim().replace(/\s+/g," ");
+  }
+
+  btnBulkToggle.addEventListener("click", ()=>{
+    bulkBox.classList.toggle("hidden");
+    if(!bulkBox.classList.contains("hidden")){
+      bulkText.focus();
+    }
+  });
+
+  btnBulkCancel.addEventListener("click", ()=>{
+    bulkText.value = "";
+    bulkBox.classList.add("hidden");
+  });
+
+  btnBulkSave.addEventListener("click", ()=>{
+    const groupSel = document.getElementById("exGroup"); // usa o grupo do "Adicionar exercício"
+    const group = groupSel.value;
+
+    const lines = (bulkText.value||"")
+      .split("\n")
+      .map(normalizeName)
+      .filter(Boolean);
+
+    if(!lines.length){
+      setStatus("Cole a lista de exercícios (1 por linha).", false);
+      return;
+    }
+
+    // evita duplicados
+    const existing = new Set(exercises.map(e => (e.group+"|"+e.name).toLowerCase()));
+    let added = 0;
+
+    lines.forEach(name=>{
+      const key = (group+"|"+name).toLowerCase();
+      if(existing.has(key)) return;
+      exercises.push({ id: uid("ex"), group, name, youtube: "" });
+      existing.add(key);
+      added++;
+    });
+
+    saveAll();
+    setStatus(`Lote salvo: ${added} novos exercícios no grupo ${group}.`, true);
+
+    bulkText.value = "";
+    bulkBox.classList.add("hidden");
+    renderExercises();
+  });
+
+  btnDeleteByGroup.addEventListener("click", ()=>{
+    const groupSel = document.getElementById("filterGroup"); // usa o filtro da tabela
+    const g = groupSel.value;
+
+    if(g === "__ALL__"){
+      setStatus("Selecione um grupo no filtro para excluir.", false);
+      return;
+    }
+
+    if(!confirm(`Excluir TODOS os exercícios do grupo "${g}"?`)) return;
+
+    const idsToRemove = new Set(exercises.filter(e=>e.group===g).map(e=>e.id));
+    exercises = exercises.filter(e=>e.group!==g);
+
+    // remove também dos treinos
+    Object.keys(plans).forEach(stId=>{
+      const byDay = plans[stId] || {};
+      Object.keys(byDay).forEach(day=>{
+        byDay[day] = (byDay[day]||[]).filter(it => !idsToRemove.has(it.exerciseId));
+      });
+    });
+
+    saveAll();
+    setStatus(`Grupo "${g}" apagado.`, true);
+    renderExercises();
+    renderPlansPreview();
+  });
+
+  btnDeleteAll.addEventListener("click", ()=>{
+    if(!confirm("ATENÇÃO: Isso vai apagar TODOS os exercícios e remover dos treinos. Continuar?")) return;
+
+    const idsToRemove = new Set(exercises.map(e=>e.id));
+    exercises = [];
+
+    Object.keys(plans).forEach(stId=>{
+      const byDay = plans[stId] || {};
+      Object.keys(byDay).forEach(day=>{
+        byDay[day] = (byDay[day]||[]).filter(it => !idsToRemove.has(it.exerciseId));
+      });
+    });
+
+    saveAll();
+    setStatus("Todos os exercícios foram apagados.", true);
+    renderExercises();
+    renderPlansPreview();
+  });
+})();
+
+
 
