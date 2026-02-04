@@ -55,6 +55,35 @@ function escapeHtml(s){
 }
 function escapeAttr(s){ return escapeHtml(s).replaceAll("`",""); }
 
+/* ========= YOUTUBE EMBED (NOVO) ========= */
+function youtubeToEmbed(url){
+  if(!url) return "";
+  const u = String(url).trim();
+
+  // youtu.be/ID
+  if(u.includes("youtu.be/")){
+    const id = u.split("youtu.be/")[1].split("?")[0].split("&")[0];
+    return id ? `https://www.youtube.com/embed/${id}` : "";
+  }
+
+  // youtube.com/watch?v=ID
+  if(u.includes("watch?v=")){
+    const id = u.split("watch?v=")[1].split("&")[0];
+    return id ? `https://www.youtube.com/embed/${id}` : "";
+  }
+
+  // shorts
+  if(u.includes("youtube.com/shorts/")){
+    const id = u.split("youtube.com/shorts/")[1].split("?")[0].split("&")[0];
+    return id ? `https://www.youtube.com/embed/${id}` : "";
+  }
+
+  // already embed
+  if(u.includes("/embed/")) return u;
+
+  return "";
+}
+
 /* ========= HASH (senha do aluno) ========= */
 async function sha256(text){
   const enc = new TextEncoder().encode(text);
@@ -120,7 +149,6 @@ function showView(view){
   $$(".view").forEach(v => v.classList.add("hidden"));
   $(`#view-${view}`).classList.remove("hidden");
 
-  // marca item ativo dentro do menu visível
   const menu = !$("#menuAdmin").classList.contains("hidden") ? "#menuAdmin" : "#menuAluno";
   document.querySelectorAll(`${menu} .menu-item`).forEach(b=> b.classList.remove("active"));
   const active = document.querySelector(`${menu} .menu-item[data-view="${view}"]`);
@@ -312,7 +340,7 @@ function renderExercises(){
     tr.innerHTML = `
       <td>${escapeHtml(e.group)}</td>
       <td>${escapeHtml(e.name)}</td>
-      <td>${has ? `<a class="link" href="${escapeAttr(e.youtube)}" target="_blank" rel="noopener">Abrir</a>` : `<span class="muted">—</span>`}</td>
+      <td>${has ? `<span class="tag">OK</span>` : `<span class="muted">—</span>`}</td>
       <td class="right">
         <button class="icon-btn" data-act="edit" data-id="${e.id}">Editar</button>
         <button class="icon-btn" data-act="del" data-id="${e.id}">Excluir</button>
@@ -353,7 +381,6 @@ function deleteExercise(id){
   if(!confirm("Excluir exercício?")) return;
   exercises = exercises.filter(e=>e.id!==id);
 
-  // remove do treino
   Object.keys(plans).forEach(stId=>{
     const byDay = plans[stId] || {};
     Object.keys(byDay).forEach(day=>{
@@ -392,7 +419,6 @@ function saveEditExercise(){
   e.youtube = $("#editYoutube").value.trim();
   if(!e.name) return setStatus("Nome não pode ficar vazio", false);
 
-  // atualiza nos planos
   Object.keys(plans).forEach(stId=>{
     const byDay = plans[stId] || {};
     Object.keys(byDay).forEach(day=>{
@@ -477,10 +503,11 @@ function renderPlansPreview(){
     return;
   }
 
-  wrap.innerHTML = buildPlanHTML(studentId, true); // com botões
+  wrap.innerHTML = buildPlanHTML(studentId, true);
   attachPlanButtons(studentId, wrap);
 }
 
+/* ========= AQUI FOI A MUDANÇA DO VÍDEO (NOVO) ========= */
 function buildPlanHTML(studentId, withButtons){
   const byDay = plans[studentId] || {};
   const days = Object.keys(byDay);
@@ -492,29 +519,38 @@ function buildPlanHTML(studentId, withButtons){
 
   return days.map(day=>{
     const items = byDay[day] || [];
-    const itemsHtml = items.map(it=>`
-      <div class="plan-item">
-        <div>
-          <div><b>${escapeHtml(it.name)}</b> <span class="muted">(${escapeHtml(it.group)})</span></div>
-          <div class="muted">
-            ${it.youtube ? `<a class="link" target="_blank" rel="noopener" href="${escapeAttr(it.youtube)}">ver vídeo</a>` : "sem vídeo"}
+    const itemsHtml = items.map(it=>{
+      const embed = youtubeToEmbed(it.youtube);
+      return `
+        <div class="plan-item">
+          <div>
+            <div><b>${escapeHtml(it.name)}</b> <span class="muted">(${escapeHtml(it.group)})</span></div>
+            <div class="muted">
+              ${
+                embed
+                  ? `<div class="video-box"><iframe src="${escapeAttr(embed)}" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen></iframe></div>`
+                  : (it.youtube ? `<span class="tag">link inválido</span>` : `<span class="muted">sem vídeo</span>`)
+              }
+            </div>
+          </div>
+          <div><span class="muted">Séries</span><br><b>${escapeHtml(it.sets)}</b></div>
+          <div><span class="muted">Reps</span><br><b>${escapeHtml(it.reps)}</b></div>
+          <div><span class="muted">Desc</span><br><b>${escapeHtml(it.rest)}</b></div>
+          <div class="muted">${escapeHtml(it.note || "")}</div>
+          <div class="row gap">
+            ${
+              withButtons
+                ? `<button class="icon-btn" data-act="up" data-day="${escapeAttr(day)}" data-id="${it.id}">↑</button>
+                   <button class="icon-btn" data-act="down" data-day="${escapeAttr(day)}" data-id="${it.id}">↓</button>
+                   <button class="icon-btn" data-act="del" data-day="${escapeAttr(day)}" data-id="${it.id}">✕</button>`
+                : ``
+            }
           </div>
         </div>
-        <div><span class="muted">Séries</span><br><b>${escapeHtml(it.sets)}</b></div>
-        <div><span class="muted">Reps</span><br><b>${escapeHtml(it.reps)}</b></div>
-        <div><span class="muted">Desc</span><br><b>${escapeHtml(it.rest)}</b></div>
-        <div class="muted">${escapeHtml(it.note || "")}</div>
-        <div class="row gap">
-          ${
-            withButtons
-              ? `<button class="icon-btn" data-act="up" data-day="${escapeAttr(day)}" data-id="${it.id}">↑</button>
-                 <button class="icon-btn" data-act="down" data-day="${escapeAttr(day)}" data-id="${it.id}">↓</button>
-                 <button class="icon-btn" data-act="del" data-day="${escapeAttr(day)}" data-id="${it.id}">✕</button>`
-              : ``
-          }
-        </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
 
     return `
       <div class="plan-day">
@@ -588,8 +624,7 @@ function clearAllPlans(){
 function renderStudentPlan(studentId){
   const wrap = $("#studentPlanPreview");
   if(!wrap) return;
-
-  wrap.innerHTML = buildPlanHTML(studentId, false);
+  wrap.innerHTML = buildPlanHTML(studentId, false); // com vídeo embutido também
 }
 
 /* ========= BACKUP ========= */
@@ -673,21 +708,17 @@ function applyRoleUI(auth){
 }
 
 function bootAppUI(auth){
-  // selects
   fillGroupsSelects();
   fillStudentsSelect();
   fillPlanExerciseSelect();
 
-  // render
   renderDashboard();
   renderStudents();
   renderExercises();
   renderPlansPreview();
 
-  // role ui
   applyRoleUI(auth);
 
-  // se for aluno, renderiza treino dele
   if(auth?.role === "student"){
     renderStudentPlan(auth.studentId);
   }
@@ -744,7 +775,6 @@ function bindEvents(){
 
   $("#btnLogout").addEventListener("click", logout);
 
-  // Menus
   $$("#menuAdmin .menu-item").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       showView(btn.dataset.view);
@@ -762,21 +792,17 @@ function bindEvents(){
     });
   });
 
-  // Alunos
   $("#btnAddStudent").addEventListener("click", addStudent);
 
-  // Exercícios
   $("#btnAddExercise").addEventListener("click", addExercise);
   $("#filterGroup").addEventListener("change", renderExercises);
   $("#searchExercise").addEventListener("input", renderExercises);
 
-  // Modal
   $("#btnCloseModal").addEventListener("click", closeModal);
   $("#btnSaveExercise").addEventListener("click", saveEditExercise);
   $("#btnDeleteExercise").addEventListener("click", deleteFromModal);
   $("#modal").addEventListener("click", (e)=>{ if(e.target.id==="modal") closeModal(); });
 
-  // Treinos
   $("#planGroup").addEventListener("change", fillPlanExerciseSelect);
   $("#planStudent").addEventListener("change", renderPlansPreview);
   $("#planDay").addEventListener("change", renderPlansPreview);
@@ -784,7 +810,6 @@ function bindEvents(){
   $("#btnClearDay").addEventListener("click", clearDay);
   $("#btnClearAllPlans").addEventListener("click", clearAllPlans);
 
-  // Backup
   $("#btnExport").addEventListener("click", exportJSON);
   $("#importFile").addEventListener("change", (e)=>{
     const f = e.target.files?.[0];
@@ -810,116 +835,5 @@ function bindEvents(){
     $("#app").classList.add("hidden");
   }
 })();
-// ====== EXTRA: ADD/REMOVE AVANÇADO (SEM MEXER NO RESTO) ======
-(function extraExerciseTools(){
-  const btnBulkToggle = document.getElementById("btnBulkToggle");
-  const bulkBox = document.getElementById("bulkBox");
-  const bulkText = document.getElementById("bulkText");
-  const btnBulkSave = document.getElementById("btnBulkSave");
-  const btnBulkCancel = document.getElementById("btnBulkCancel");
-
-  const btnDeleteByGroup = document.getElementById("btnDeleteByGroup");
-  const btnDeleteAll = document.getElementById("btnDeleteAllExercises");
-
-  if(!btnBulkToggle) return;
-
-  function normalizeName(s){
-    return (s||"").trim().replace(/\s+/g," ");
-  }
-
-  btnBulkToggle.addEventListener("click", ()=>{
-    bulkBox.classList.toggle("hidden");
-    if(!bulkBox.classList.contains("hidden")){
-      bulkText.focus();
-    }
-  });
-
-  btnBulkCancel.addEventListener("click", ()=>{
-    bulkText.value = "";
-    bulkBox.classList.add("hidden");
-  });
-
-  btnBulkSave.addEventListener("click", ()=>{
-    const groupSel = document.getElementById("exGroup"); // usa o grupo do "Adicionar exercício"
-    const group = groupSel.value;
-
-    const lines = (bulkText.value||"")
-      .split("\n")
-      .map(normalizeName)
-      .filter(Boolean);
-
-    if(!lines.length){
-      setStatus("Cole a lista de exercícios (1 por linha).", false);
-      return;
-    }
-
-    // evita duplicados
-    const existing = new Set(exercises.map(e => (e.group+"|"+e.name).toLowerCase()));
-    let added = 0;
-
-    lines.forEach(name=>{
-      const key = (group+"|"+name).toLowerCase();
-      if(existing.has(key)) return;
-      exercises.push({ id: uid("ex"), group, name, youtube: "" });
-      existing.add(key);
-      added++;
-    });
-
-    saveAll();
-    setStatus(`Lote salvo: ${added} novos exercícios no grupo ${group}.`, true);
-
-    bulkText.value = "";
-    bulkBox.classList.add("hidden");
-    renderExercises();
-  });
-
-  btnDeleteByGroup.addEventListener("click", ()=>{
-    const groupSel = document.getElementById("filterGroup"); // usa o filtro da tabela
-    const g = groupSel.value;
-
-    if(g === "__ALL__"){
-      setStatus("Selecione um grupo no filtro para excluir.", false);
-      return;
-    }
-
-    if(!confirm(`Excluir TODOS os exercícios do grupo "${g}"?`)) return;
-
-    const idsToRemove = new Set(exercises.filter(e=>e.group===g).map(e=>e.id));
-    exercises = exercises.filter(e=>e.group!==g);
-
-    // remove também dos treinos
-    Object.keys(plans).forEach(stId=>{
-      const byDay = plans[stId] || {};
-      Object.keys(byDay).forEach(day=>{
-        byDay[day] = (byDay[day]||[]).filter(it => !idsToRemove.has(it.exerciseId));
-      });
-    });
-
-    saveAll();
-    setStatus(`Grupo "${g}" apagado.`, true);
-    renderExercises();
-    renderPlansPreview();
-  });
-
-  btnDeleteAll.addEventListener("click", ()=>{
-    if(!confirm("ATENÇÃO: Isso vai apagar TODOS os exercícios e remover dos treinos. Continuar?")) return;
-
-    const idsToRemove = new Set(exercises.map(e=>e.id));
-    exercises = [];
-
-    Object.keys(plans).forEach(stId=>{
-      const byDay = plans[stId] || {};
-      Object.keys(byDay).forEach(day=>{
-        byDay[day] = (byDay[day]||[]).filter(it => !idsToRemove.has(it.exerciseId));
-      });
-    });
-
-    saveAll();
-    setStatus("Todos os exercícios foram apagados.", true);
-    renderExercises();
-    renderPlansPreview();
-  });
-})();
-
 
 
