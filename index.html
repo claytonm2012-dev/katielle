@@ -184,6 +184,21 @@
       <section id="view-exercicios" class="view hidden">
         <div class="card">
           <div class="card-title">Adicionar exercício</div>
+          <div class="row gap wrap mt">
+  <button class="btn" id="btnBulkToggle">Adicionar em lote</button>
+  <button class="btn danger" id="btnDeleteByGroup">Excluir todos do grupo</button>
+  <button class="btn danger" id="btnDeleteAllExercises">Excluir TODOS exercícios</button>
+</div>
+
+<div id="bulkBox" class="hidden mt">
+  <p class="muted small">Cole 1 exercício por linha. Exemplo: “Supino reto (barra)”</p>
+  <textarea id="bulkText" class="textarea" placeholder="Cole aqui..."></textarea>
+  <div class="row gap wrap mt">
+    <button class="btn primary" id="btnBulkSave">Salvar lote no grupo selecionado</button>
+    <button class="btn" id="btnBulkCancel">Cancelar</button>
+  </div>
+</div>
+
           <div class="row gap wrap">
             <div class="field">
               <label class="lbl">Grupo</label>
@@ -356,6 +371,7 @@
   <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
