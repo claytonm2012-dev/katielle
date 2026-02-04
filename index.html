@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultoria Dos Sonhos</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <section id="loginScreen" class="login-container">
+    <div class="form-container">
+      <div id="brandLogo" class="logo">Consultoria Dos Sonhos</div>
+
+      <form id="loginForm">
+        <div class="input-group">
+          <input type="text" id="username" placeholder="Email ou Usuário" required />
+        </div>
+
+        <div class="input-group">
+          <input type="password" id="password" placeholder="Senha" required />
+        </div>
+
+        <div class="remember-forgot">
+          <label class="check">
+            <input type="checkbox" id="rememberMe" />
+            <span>Lembrar-me</span>
+          </label>
+          <a href="#" class="forgot-password">Esqueceu sua senha?</a>
+        </div>
+
+        <button type="submit" class="btn-login">Entrar</button>
+
+        <div id="loginErrorMessage" class="error-message">
+          Credenciais inválidas. Verifique usuário e senha.
+        </div>
+
+        <div class="signup-link">
+          Novo por aqui? <a href="#" id="showRegister">Cadastre-se</a>
+        </div>
+      </form>
+
+      <!-- Plans -->
+      <div id="plansSection" class="plans-section">
+        <h2 class="h2">Planos Disponíveis</h2>
+        <div id="plansList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Student Dashboard -->
+  <section id="studentDashboard" class="hidden">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="topbar-left">
+          <h1 id="studentTitle" class="brand-title">Consultoria Dos Sonhos</h1>
+        </div>
+
+        <nav class="nav">
+          <a href="#" class="nav-link">Início</a>
+          <a href="#" class="nav-link">Meus Treinos</a>
+          <a href="#" class="nav-link">Progresso</a>
+        </nav>
+
+        <div class="topbar-right">
+          <button id="searchBtn" class="icon-btn" aria-label="Buscar">🔎</button>
+          <button id="logoutBtn" class="link-btn">Sair</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-card">
+        <div class="hero-content">
+          <h2 class="hero-title">Seu Caminho Para os Sonhos</h2>
+          <p class="hero-subtitle">Treinos personalizados criados exclusivamente para seus objetivos.</p>
+          <button id="playHero" class="btn-primary">▶ Assistir Agora</button>
+        </div>
+      </div>
+    </section>
+
+    <main class="page">
+      <div id="categoriesRoot"></div>
+    </main>
+
+    <!-- Player Overlay -->
+    <div id="playerOverlay" class="player-overlay" aria-hidden="true">
+      <div class="player-content">
+        <button id="closePlayer" class="close-player" aria-label="Fechar">✕</button>
+        <h2 id="playerTitle" class="player-title">Título do vídeo</h2>
+        <div class="player-frame">
+          <iframe id="videoFrame" width="100%" height="420" src="" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <div class="player-actions">
+          <button id="nextVideoBtn" class="btn-primary">Próximo Vídeo ▶</button>
+          <button id="completeBtn" class="btn-muted">✓ Concluir Aula</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Admin Dashboard -->
+  <section id="adminDashboard" class="admin-container hidden">
+    <aside class="admin-sidebar">
+      <h2 class="admin-side-title">Admin Consultoria</h2>
+      <ul class="sidebar-menu">
+        <li><a href="#" class="side-link" data-tab="admindashboard">Dashboard</a></li>
+        <li><a href="#" class="side-link" data-tab="adminstudents">Alunos</a></li>
+        <li><a href="#" class="side-link" data-tab="adminvideos">Vídeos</a></li>
+        <li><a href="#" class="side-link" data-tab="adminthemes">Temas</a></li>
+        <li><a href="#" class="side-link" data-tab="adminexercises">Exercícios</a></li>
+        <li><a href="#" id="adminLogout" class="side-link danger">Sair</a></li>
+      </ul>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-header">
+        <h1 class="admin-title">Painel Administrativo</h1>
+        <div class="admin-hello">Olá, <span id="adminHelloName">Katielle</span>!</div>
+      </header>
+
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="admindashboard">Dashboard</button>
+        <button class="admin-tab" data-tab="adminstudents">Alunos</button>
+        <button class="admin-tab" data-tab="adminvideos">Vídeos</button>
+        <button class="admin-tab" data-tab="adminthemes">Temas</button>
+        <button class="admin-tab" data-tab="adminexercises">Exercícios</button>
+      </div>
+
+      <!-- Dashboard -->
+      <section id="admindashboard" class="admin-tab-content active">
+        <div class="admin-grid" id="statsCards"></div>
+
+        <div class="admin-card">
+          <h3 class="admin-h3">Alunos Recentes</h3>
+          <div class="table-container">
+            <table class="admin-table">
+              <thead>
+              <tr>
+                <th>Nome</th><th>Email</th><th>Plano</th><th>Vencimento</th><th>Status</th>
+              </tr>
+              </thead>
+              <tbody id="recentStudentsTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Students -->
+      <section id="adminstudents" class="admin-tab-content">
+        <div class="admin-card">
+          <div class="admin-row">
+            <h3 class="admin-h3">Gerenciar Alunos</h3>
+            <button id="addStudentBtn" class="admin-btn admin-btn-primary">Adicionar Aluno</button>
+          </div>
+
+          <div class="table-container">
+            <table class="admin-table">
+              <thead>
+              <tr>
+                <th>Nome</th><th>Email</th><th>Plano</th><th>Vencimento</th><th>Status</th><th>Ações</th>
+              </tr>
+              </thead>
+              <tbody id="studentsTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Videos -->
+      <section id="adminvideos" class="admin-tab-content">
+        <div class="admin-card">
+          <div class="admin-row">
+            <h3 class="admin-h3">Gerenciar Vídeos</h3>
+            <button id="addVideoBtn" class="admin-btn admin-btn-primary">Adicionar Vídeo</button>
+          </div>
+
+          <div class="table-container">
+            <table class="admin-table">
+              <thead>
+              <tr>
+                <th>Título</th><th>Categoria</th><th>Duração</th><th>Status</th><th>Ações</th>
+              </tr>
+              </thead>
+              <tbody id="videosTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Themes -->
+      <section id="adminthemes" class="admin-tab-content">
+        <div class="admin-card">
+          <h3 class="admin-h3">Personalizar Tema</h3>
+
+          <div class="admin-form-group">
+            <label for="backgroundImage">Imagem de Fundo (preview)</label>
+            <input type="file" id="backgroundImage" accept="image/*" />
+          </div>
+
+          <div class="admin-form-group">
+            <label>Pré-visualização de Temas</label>
+            <div id="themesRow" class="themes-row"></div>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="customLogo">Logo Personalizado (preview)</label>
+            <input type="file" id="customLogo" accept="image/*" />
+          </div>
+
+          <button id="saveThemeBtn" class="admin-btn admin-btn-primary full">Salvar Alterações</button>
+          <p class="muted small">*Sem back-end: isso salva no navegador (localStorage).</p>
+        </div>
+      </section>
+
+      <!-- Exercises -->
+      <section id="adminexercises" class="admin-tab-content">
+        <div class="admin-card">
+          <h3 class="admin-h3">Catálogo de Exercícios</h3>
+          <div id="exercisesRoot"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- Add Student Modal -->
+  <div id="studentModal" class="admin-modal hidden" aria-hidden="true">
+    <div class="admin-modal-content">
+      <button class="admin-close-modal" data-close="studentModal" aria-label="Fechar">✕</button>
+      <h3 class="admin-h3">Adicionar Novo Aluno</h3>
+
+      <form id="studentForm">
+        <div class="admin-form-group">
+          <label for="studentName">Nome Completo</label>
+          <input type="text" id="studentName" required />
+        </div>
+
+        <div class="admin-form-group">
+          <label for="studentEmail">Email</label>
+          <input type="email" id="studentEmail" required />
+        </div>
+
+        <div class="admin-form-group">
+          <label for="studentUsername">Usuário (Login)</label>
+          <input type="text" id="studentUsername" required />
+        </div>
+
+        <div class="admin-form-group">
+          <label for="studentPassword">Senha</label>
+          <input type="password" id="studentPassword" required />
+        </div>
+
+        <div class="admin-form-group">
+          <label for="studentPlan">Plano</label>
+          <select id="studentPlan" required></select>
+        </div>
+
+        <div class="admin-form-group">
+          <label for="studentAccess">Data de Início</label>
+          <input type="date" id="studentAccess" required />
+        </div>
+
+        <button type="submit" class="admin-btn admin-btn-primary full">Salvar Aluno</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Video Modal -->
+  <div id="videoModal" class="admin-modal hidden" aria-hidden="true">
+    <div class="admin-modal-content">
+      <button class="admin-close-modal" data-close="videoModal" aria-label="Fechar">✕</button>
+      <h3 class="admin-h3">Adicionar Novo Vídeo</h3>
+
+      <form id="videoForm">
+        <div class="admin-form-group">
+          <label for="videoTitle">Título do Vídeo</label>
+          <input type="text" id="videoTitle" required />
+        </div>
+
+        <div class="admin-form-group">
+          <label for="videoCategory">Categoria</label>
+          <select id="videoCategory" required></select>
+        </div>
+
+        <div class="admin-form-group">
+          <label for="videoUrl">URL do Vídeo (YouTube)</label>
+          <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." />
+        </div>
+
+        <div class="admin-form-group">
+          <label for="videoDuration">Duração (texto)</label>
+          <input type="text" id="videoDuration" placeholder="Ex: 20 min" required />
+        </div>
+
+        <div class="admin-form-group">
+          <label for="videoDescription">Descrição</label>
+          <textarea id="videoDescription" rows="3"></textarea>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="videoStatus" />
+          <span>Publicar imediatamente</span>
+        </label>
+
+        <button type="submit" class="admin-btn admin-btn-primary full">Salvar Vídeo</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

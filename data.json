@@ -1,0 +1,116 @@
+{
+  "app": {
+    "title": "Consultoria Dos Sonhos",
+    "subtitle": "Katielle Amaral",
+    "primaryColor": "#e50914",
+    "darkBg": "#141414",
+    "cardBg": "#1f1f1f",
+    "loginBackground": "https://placehold.co/1200x800/141414/FFFFFF?text=Pesos+de+Academia",
+    "heroBackground": "https://placehold.co/1200x500/141414/FFFFFF?text=Treino+Personalizado"
+  },
+  "auth": {
+    "admin": { "username": "katielle", "password": "adm123" },
+    "students": [
+      { "id": "s1", "name": "Aluno Demo", "email": "aluno@email.com", "username": "aluno", "password": "senha123", "planMonths": 3, "startDate": "2026-02-03", "status": "active" }
+    ]
+  },
+  "plans": [
+    {
+      "id": "p3",
+      "title": "STARTER (Trimestral)",
+      "months": 3,
+      "subtitle": "Acesso por 3 meses",
+      "price": "R$ 397,00",
+      "paymentNote": "no Pix ou até 12x (com juros)",
+      "features": ["Acesso completo por 3 meses", "+100 aulas disponíveis", "Suporte por WhatsApp"]
+    },
+    {
+      "id": "p6",
+      "title": "ELITE (Semestral)",
+      "months": 6,
+      "subtitle": "Acesso por 6 meses",
+      "price": "R$ 667,00",
+      "paymentNote": "no Pix ou até 12x (com juros)",
+      "features": ["Acesso completo por 6 meses", "+150 aulas disponíveis", "Treino personalizado", "Suporte 24h"]
+    },
+    {
+      "id": "p12",
+      "title": "PREMIUM (Anual)",
+      "months": 12,
+      "subtitle": "Acesso por 12 meses",
+      "price": "R$ 1.117,00",
+      "paymentNote": "no Pix ou até 12x (com juros)",
+      "features": ["Acesso completo por 12 meses", "+200 aulas disponíveis", "Treino personalizado", "Download de aulas", "Suporte 24h", "Certificado de conclusão"]
+    }
+  ],
+  "categories": [
+    { "id": "meus", "name": "Meus Treinos Personalizados" },
+    { "id": "alongamento", "name": "Alongamento e Mobilidade" },
+    { "id": "gerais", "name": "Treinos Gerais" }
+  ],
+  "videos": [
+    {
+      "id": "v1",
+      "title": "Aquecimento Diário",
+      "categoryId": "meus",
+      "duration": "10 min",
+      "thumb": "https://placehold.co/300x170",
+      "progress": 70,
+      "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "published": true,
+      "description": ""
+    },
+    {
+      "id": "v2",
+      "title": "Força - Parte Superior",
+      "categoryId": "meus",
+      "duration": "25 min",
+      "thumb": "https://placehold.co/300x170",
+      "progress": 30,
+      "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "published": true,
+      "description": ""
+    },
+    {
+      "id": "v3",
+      "title": "Alongamento Vespertino",
+      "categoryId": "meus",
+      "duration": "15 min",
+      "thumb": "https://placehold.co/300x170",
+      "progress": 0,
+      "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "published": true,
+      "description": ""
+    },
+    {
+      "id": "v4",
+      "title": "Alongamento Matinal",
+      "categoryId": "alongamento",
+      "duration": "20 min",
+      "thumb": "https://placehold.co/300x170",
+      "progress": null,
+      "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "published": true,
+      "description": ""
+    }
+  ],
+  "dashboardStats": {
+    "totalStudents": 1248,
+    "totalVideos": 156,
+    "lessonsCompleted": 8421
+  },
+  "exercises": [
+    { "name": "Peitoral", "items": ["Supino Reto", "Supino Inclinado", "Crucifixo", "Flexão de Braços"] },
+    { "name": "Costas", "items": ["Barra Fixa", "Remada Curvada", "Puxada Frontal", "Levantamento Terra"] },
+    { "name": "Pernas", "items": ["Agachamento Livre", "Agachamento Smith", "Leg Press", "Cadeira Extensora"] },
+    { "name": "Ombros", "items": ["Elevação Lateral", "Desenvolvimento com Halteres", "Arnold Press", "Encolhimento de Ombros"] },
+    { "name": "Braços", "items": ["Rosca Direta", "Rosca Martelo", "Tríceps Polia", "Tríceps Banco"] },
+    { "name": "Abdômen", "items": ["Abdominal Tradicional", "Prancha", "Russian Twist", "Elevação de Pernas"] }
+  ],
+  "themes": [
+    { "id": "red", "name": "Vermelho Netflix", "gradient": ["#e50914", "#000000"] },
+    { "id": "blue", "name": "Azul", "gradient": ["#1e3a8a", "#000000"] },
+    { "id": "green", "name": "Verde", "gradient": ["#065f46", "#000000"] },
+    { "id": "purple", "name": "Roxo", "gradient": ["#5b21b6", "#000000"] }
+  ]
+}
