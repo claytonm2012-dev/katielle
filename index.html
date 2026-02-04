@@ -131,19 +131,24 @@
 
       <div class="card">
         <h3>Alunos</h3>
-        <table id="studentsTable">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Usuário</th>
-              <th>Plano</th>
-              <th>Vencimento</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+
+        <!-- ✅ WRAP p/ mobile não estourar -->
+        <div class="table-wrap">
+          <table id="studentsTable">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Usuário</th>
+                <th>Plano</th>
+                <th>Vencimento</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
       </div>
     </section>
 
@@ -176,17 +181,21 @@
           <input id="searchExercise" placeholder="Buscar exercício">
         </div>
 
-        <table id="exercisesTable">
-          <thead>
-            <tr>
-              <th>Grupo</th>
-              <th>Exercício</th>
-              <th>Vídeo</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <!-- ✅ WRAP p/ mobile não estourar -->
+        <div class="table-wrap">
+          <table id="exercisesTable">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Exercício</th>
+                <th>Vídeo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
       </div>
     </section>
 
@@ -245,8 +254,6 @@
 <script src="app.js"></script>
 </body>
 </html>
-
-
 
 
 
