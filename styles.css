@@ -9,7 +9,7 @@
   --ok:#18c37d;
 
   /* ✅ ALTERE AQUI se sua imagem tiver outro nome */
-  --bg-image: url("assets/login-bg.jpg");
+  --bg-image: url("login-bg.jpg");
 }
 
 *{box-sizing:border-box}
@@ -296,6 +296,7 @@ body::after{
   backdrop-filter:blur(10px);
 }
 .modal-title{margin:0}
+
 
 
 
