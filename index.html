@@ -1,313 +1,316 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Consultoria Dos Sonhos</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Consultoria</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- LOGIN -->
+  <main id="loginScreen" class="login-wrap">
+    <div class="login-card">
+      <h1>Consultoria</h1>
+      <p class="muted">Acesso Administrativo</p>
 
-  <!-- Login Screen -->
-  <section id="loginScreen" class="login-container">
-    <div class="form-container">
-      <div id="brandLogo" class="logo">Consultoria Dos Sonhos</div>
+      <label class="lbl">Usuário</label>
+      <input id="loginUser" class="inp" placeholder="admin" autocomplete="username" />
 
-      <form id="loginForm">
-        <div class="input-group">
-          <input type="text" id="username" placeholder="Email ou Usuário" required />
-        </div>
+      <label class="lbl">Senha</label>
+      <input id="loginPass" class="inp" placeholder="••••••••" type="password" autocomplete="current-password" />
 
-        <div class="input-group">
-          <input type="password" id="password" placeholder="Senha" required />
-        </div>
+      <button class="btn primary" id="btnLogin">Entrar</button>
+      <p id="loginMsg" class="msg"></p>
 
-        <div class="remember-forgot">
-          <label class="check">
-            <input type="checkbox" id="rememberMe" />
-            <span>Lembrar-me</span>
-          </label>
-          <a href="#" class="forgot-password">Esqueceu sua senha?</a>
-        </div>
-
-        <button type="submit" class="btn-login">Entrar</button>
-
-        <div id="loginErrorMessage" class="error-message">
-          Credenciais inválidas. Verifique usuário e senha.
-        </div>
-
-        <div class="signup-link">
-          Novo por aqui? <a href="#" id="showRegister">Cadastre-se</a>
-        </div>
-      </form>
-
-      <!-- Plans -->
-      <div id="plansSection" class="plans-section">
-        <h2 class="h2">Planos Disponíveis</h2>
-        <div id="plansList"></div>
+      <div class="hint">
+        <span class="badge">Dica</span>
+        <span>Se quiser trocar a senha, edite a constante <b>ADMIN_PASSWORD</b> no <b>app.js</b>.</span>
       </div>
     </div>
-  </section>
+  </main>
 
-  <!-- Student Dashboard -->
-  <section id="studentDashboard" class="hidden">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="topbar-left">
-          <h1 id="studentTitle" class="brand-title">Consultoria Dos Sonhos</h1>
-        </div>
-
-        <nav class="nav">
-          <a href="#" class="nav-link">Início</a>
-          <a href="#" class="nav-link">Meus Treinos</a>
-          <a href="#" class="nav-link">Progresso</a>
-        </nav>
-
-        <div class="topbar-right">
-          <button id="searchBtn" class="icon-btn" aria-label="Buscar">🔎</button>
-          <button id="logoutBtn" class="link-btn">Sair</button>
+  <!-- APP -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div>
+          <div class="brand-title">Admin Consultoria</div>
+          <div class="brand-sub">Painel</div>
         </div>
       </div>
-    </header>
 
-    <section class="hero">
-      <div class="hero-card">
-        <div class="hero-content">
-          <h2 class="hero-title">Seu Caminho Para os Sonhos</h2>
-          <p class="hero-subtitle">Treinos personalizados criados exclusivamente para seus objetivos.</p>
-          <button id="playHero" class="btn-primary">▶ Assistir Agora</button>
-        </div>
+      <nav class="menu">
+        <button class="menu-item active" data-view="dashboard">Dashboard</button>
+        <button class="menu-item" data-view="alunos">Alunos</button>
+        <button class="menu-item" data-view="exercicios">Exercícios</button>
+        <button class="menu-item" data-view="treinos">Treinos</button>
+        <button class="menu-item" data-view="backup">Backup</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn ghost" id="btnLogout">Sair</button>
       </div>
-    </section>
-
-    <main class="page">
-      <div id="categoriesRoot"></div>
-    </main>
-
-    <!-- Player Overlay -->
-    <div id="playerOverlay" class="player-overlay" aria-hidden="true">
-      <div class="player-content">
-        <button id="closePlayer" class="close-player" aria-label="Fechar">✕</button>
-        <h2 id="playerTitle" class="player-title">Título do vídeo</h2>
-        <div class="player-frame">
-          <iframe id="videoFrame" width="100%" height="420" src="" frameborder="0" allowfullscreen></iframe>
-        </div>
-        <div class="player-actions">
-          <button id="nextVideoBtn" class="btn-primary">Próximo Vídeo ▶</button>
-          <button id="completeBtn" class="btn-muted">✓ Concluir Aula</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Admin Dashboard -->
-  <section id="adminDashboard" class="admin-container hidden">
-    <aside class="admin-sidebar">
-      <h2 class="admin-side-title">Admin Consultoria</h2>
-      <ul class="sidebar-menu">
-        <li><a href="#" class="side-link" data-tab="admindashboard">Dashboard</a></li>
-        <li><a href="#" class="side-link" data-tab="adminstudents">Alunos</a></li>
-        <li><a href="#" class="side-link" data-tab="adminvideos">Vídeos</a></li>
-        <li><a href="#" class="side-link" data-tab="adminthemes">Temas</a></li>
-        <li><a href="#" class="side-link" data-tab="adminexercises">Exercícios</a></li>
-        <li><a href="#" id="adminLogout" class="side-link danger">Sair</a></li>
-      </ul>
     </aside>
 
-    <div class="admin-main">
-      <header class="admin-header">
-        <h1 class="admin-title">Painel Administrativo</h1>
-        <div class="admin-hello">Olá, <span id="adminHelloName">Katielle</span>!</div>
+    <section class="content">
+      <header class="topbar">
+        <h2 id="viewTitle">Painel Administrativo</h2>
+        <div class="top-actions">
+          <span class="pill" id="statusPill">OK</span>
+        </div>
       </header>
 
-      <div class="admin-tabs">
-        <button class="admin-tab active" data-tab="admindashboard">Dashboard</button>
-        <button class="admin-tab" data-tab="adminstudents">Alunos</button>
-        <button class="admin-tab" data-tab="adminvideos">Vídeos</button>
-        <button class="admin-tab" data-tab="adminthemes">Temas</button>
-        <button class="admin-tab" data-tab="adminexercises">Exercícios</button>
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="view">
+        <div class="grid">
+          <div class="card">
+            <div class="card-title">Alunos</div>
+            <div class="big" id="dashStudents">0</div>
+            <div class="muted">Total cadastrados</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Exercícios</div>
+            <div class="big" id="dashExercises">0</div>
+            <div class="muted">Itens no catálogo</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Treinos</div>
+            <div class="big" id="dashPlans">0</div>
+            <div class="muted">Dias/planos criados</div>
+          </div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-title">Atalhos</div>
+          <div class="row gap">
+            <button class="btn" data-go="alunos">Cadastrar aluno</button>
+            <button class="btn" data-go="exercicios">Adicionar exercício</button>
+            <button class="btn" data-go="treinos">Montar treino</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALUNOS -->
+      <section id="view-alunos" class="view hidden">
+        <div class="card">
+          <div class="card-title">Cadastrar aluno</div>
+          <div class="row gap wrap">
+            <div class="field">
+              <label class="lbl">Nome</label>
+              <input id="studentName" class="inp" placeholder="Ex: João Silva" />
+            </div>
+
+            <div class="field">
+              <label class="lbl">Plano</label>
+              <select id="studentPlan" class="inp">
+                <option value="3">3 meses</option>
+                <option value="6">6 meses</option>
+                <option value="12">1 ano</option>
+              </select>
+            </div>
+
+            <button class="btn primary" id="btnAddStudent">Adicionar</button>
+          </div>
+          <p class="muted small">O vencimento é calculado automaticamente.</p>
+        </div>
+
+        <div class="card mt">
+          <div class="card-title">Lista de alunos</div>
+          <div class="table-wrap">
+            <table class="table" id="studentsTable">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Plano</th>
+                  <th>Vence em</th>
+                  <th>Status</th>
+                  <th class="right">Ações</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXERCÍCIOS -->
+      <section id="view-exercicios" class="view hidden">
+        <div class="card">
+          <div class="card-title">Adicionar exercício</div>
+          <div class="row gap wrap">
+            <div class="field">
+              <label class="lbl">Grupo</label>
+              <select id="exGroup" class="inp"></select>
+            </div>
+
+            <div class="field grow">
+              <label class="lbl">Nome do exercício</label>
+              <input id="exName" class="inp" placeholder="Ex: Supino Reto" />
+            </div>
+
+            <div class="field grow">
+              <label class="lbl">Link do YouTube (opcional)</label>
+              <input id="exYoutube" class="inp" placeholder="https://youtu.be/..." />
+            </div>
+
+            <button class="btn primary" id="btnAddExercise">Adicionar</button>
+          </div>
+        </div>
+
+        <div class="card mt">
+          <div class="row between">
+            <div class="card-title">Catálogo de exercícios</div>
+            <div class="row gap">
+              <select id="filterGroup" class="inp"></select>
+              <input id="searchExercise" class="inp" placeholder="Pesquisar..." />
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table" id="exercisesTable">
+              <thead>
+                <tr>
+                  <th>Grupo</th>
+                  <th>Exercício</th>
+                  <th>Vídeo</th>
+                  <th class="right">Ações</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TREINOS -->
+      <section id="view-treinos" class="view hidden">
+        <div class="card">
+          <div class="card-title">Montar treino individual</div>
+
+          <div class="row gap wrap">
+            <div class="field">
+              <label class="lbl">Aluno</label>
+              <select id="planStudent" class="inp"></select>
+            </div>
+
+            <div class="field">
+              <label class="lbl">Dia/Bloco</label>
+              <select id="planDay" class="inp">
+                <option>Segunda</option>
+                <option>Terça</option>
+                <option>Quarta</option>
+                <option>Quinta</option>
+                <option>Sexta</option>
+                <option>Sábado</option>
+                <option>Domingo</option>
+                <option>A</option>
+                <option>B</option>
+                <option>C</option>
+                <option>D</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="lbl">Grupo</label>
+              <select id="planGroup" class="inp"></select>
+            </div>
+
+            <div class="field grow">
+              <label class="lbl">Exercício</label>
+              <select id="planExercise" class="inp"></select>
+            </div>
+          </div>
+
+          <div class="row gap wrap mt">
+            <div class="field">
+              <label class="lbl">Séries</label>
+              <input id="planSets" class="inp" type="number" min="1" value="3" />
+            </div>
+            <div class="field">
+              <label class="lbl">Reps</label>
+              <input id="planReps" class="inp" placeholder="8-12" />
+            </div>
+            <div class="field">
+              <label class="lbl">Descanso</label>
+              <input id="planRest" class="inp" placeholder="60s" />
+            </div>
+            <div class="field grow">
+              <label class="lbl">Observação</label>
+              <input id="planNote" class="inp" placeholder="Ex: controlar descida" />
+            </div>
+
+            <button class="btn primary" id="btnAddToPlan">Adicionar ao treino</button>
+          </div>
+
+          <p class="muted small mt">Você pode montar vários dias por aluno.</p>
+        </div>
+
+        <div class="card mt">
+          <div class="row between">
+            <div class="card-title">Treino do aluno (visualização)</div>
+            <div class="row gap">
+              <button class="btn" id="btnClearDay">Limpar este dia</button>
+              <button class="btn danger" id="btnClearAllPlans">Apagar todos os treinos do aluno</button>
+            </div>
+          </div>
+
+          <div id="planPreview" class="plan-preview"></div>
+        </div>
+      </section>
+
+      <!-- BACKUP -->
+      <section id="view-backup" class="view hidden">
+        <div class="card">
+          <div class="card-title">Backup / Restaurar</div>
+          <p class="muted">Como o GitHub Pages não tem banco de dados, o salvamento é no navegador (LocalStorage). Use backup para não perder.</p>
+
+          <div class="row gap wrap mt">
+            <button class="btn primary" id="btnExport">Exportar JSON</button>
+
+            <label class="btn" for="importFile" style="cursor:pointer;">Importar JSON</label>
+            <input id="importFile" type="file" accept="application/json" hidden />
+          </div>
+
+          <textarea id="backupText" class="textarea mt" placeholder="Aqui aparece o JSON exportado..."></textarea>
+          <p class="muted small">Dica: você pode copiar e colar esse JSON em um bloco de notas.</p>
+        </div>
+      </section>
+
+      <!-- MODAL EDIT EXERCICIO -->
+      <div id="modal" class="modal hidden">
+        <div class="modal-card">
+          <div class="row between">
+            <h3 class="modal-title">Editar exercício</h3>
+            <button class="btn ghost" id="btnCloseModal">Fechar</button>
+          </div>
+
+          <div class="row gap wrap mt">
+            <div class="field">
+              <label class="lbl">Grupo</label>
+              <select id="editGroup" class="inp"></select>
+            </div>
+            <div class="field grow">
+              <label class="lbl">Nome</label>
+              <input id="editName" class="inp" />
+            </div>
+            <div class="field grow">
+              <label class="lbl">YouTube</label>
+              <input id="editYoutube" class="inp" />
+            </div>
+          </div>
+
+          <div class="row gap mt right">
+            <button class="btn danger" id="btnDeleteExercise">Excluir</button>
+            <button class="btn primary" id="btnSaveExercise">Salvar</button>
+          </div>
+        </div>
       </div>
 
-      <!-- Dashboard -->
-      <section id="admindashboard" class="admin-tab-content active">
-        <div class="admin-grid" id="statsCards"></div>
-
-        <div class="admin-card">
-          <h3 class="admin-h3">Alunos Recentes</h3>
-          <div class="table-container">
-            <table class="admin-table">
-              <thead>
-              <tr>
-                <th>Nome</th><th>Email</th><th>Plano</th><th>Vencimento</th><th>Status</th>
-              </tr>
-              </thead>
-              <tbody id="recentStudentsTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- Students -->
-      <section id="adminstudents" class="admin-tab-content">
-        <div class="admin-card">
-          <div class="admin-row">
-            <h3 class="admin-h3">Gerenciar Alunos</h3>
-            <button id="addStudentBtn" class="admin-btn admin-btn-primary">Adicionar Aluno</button>
-          </div>
-
-          <div class="table-container">
-            <table class="admin-table">
-              <thead>
-              <tr>
-                <th>Nome</th><th>Email</th><th>Plano</th><th>Vencimento</th><th>Status</th><th>Ações</th>
-              </tr>
-              </thead>
-              <tbody id="studentsTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- Videos -->
-      <section id="adminvideos" class="admin-tab-content">
-        <div class="admin-card">
-          <div class="admin-row">
-            <h3 class="admin-h3">Gerenciar Vídeos</h3>
-            <button id="addVideoBtn" class="admin-btn admin-btn-primary">Adicionar Vídeo</button>
-          </div>
-
-          <div class="table-container">
-            <table class="admin-table">
-              <thead>
-              <tr>
-                <th>Título</th><th>Categoria</th><th>Duração</th><th>Status</th><th>Ações</th>
-              </tr>
-              </thead>
-              <tbody id="videosTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- Themes -->
-      <section id="adminthemes" class="admin-tab-content">
-        <div class="admin-card">
-          <h3 class="admin-h3">Personalizar Tema</h3>
-
-          <div class="admin-form-group">
-            <label for="backgroundImage">Imagem de Fundo (preview)</label>
-            <input type="file" id="backgroundImage" accept="image/*" />
-          </div>
-
-          <div class="admin-form-group">
-            <label>Pré-visualização de Temas</label>
-            <div id="themesRow" class="themes-row"></div>
-          </div>
-
-          <div class="admin-form-group">
-            <label for="customLogo">Logo Personalizado (preview)</label>
-            <input type="file" id="customLogo" accept="image/*" />
-          </div>
-
-          <button id="saveThemeBtn" class="admin-btn admin-btn-primary full">Salvar Alterações</button>
-          <p class="muted small">*Sem back-end: isso salva no navegador (localStorage).</p>
-        </div>
-      </section>
-
-      <!-- Exercises -->
-      <section id="adminexercises" class="admin-tab-content">
-        <div class="admin-card">
-          <h3 class="admin-h3">Catálogo de Exercícios</h3>
-          <div id="exercisesRoot"></div>
-        </div>
-      </section>
-    </div>
-  </section>
-
-  <!-- Add Student Modal -->
-  <div id="studentModal" class="admin-modal hidden" aria-hidden="true">
-    <div class="admin-modal-content">
-      <button class="admin-close-modal" data-close="studentModal" aria-label="Fechar">✕</button>
-      <h3 class="admin-h3">Adicionar Novo Aluno</h3>
-
-      <form id="studentForm">
-        <div class="admin-form-group">
-          <label for="studentName">Nome Completo</label>
-          <input type="text" id="studentName" required />
-        </div>
-
-        <div class="admin-form-group">
-          <label for="studentEmail">Email</label>
-          <input type="email" id="studentEmail" required />
-        </div>
-
-        <div class="admin-form-group">
-          <label for="studentUsername">Usuário (Login)</label>
-          <input type="text" id="studentUsername" required />
-        </div>
-
-        <div class="admin-form-group">
-          <label for="studentPassword">Senha</label>
-          <input type="password" id="studentPassword" required />
-        </div>
-
-        <div class="admin-form-group">
-          <label for="studentPlan">Plano</label>
-          <select id="studentPlan" required></select>
-        </div>
-
-        <div class="admin-form-group">
-          <label for="studentAccess">Data de Início</label>
-          <input type="date" id="studentAccess" required />
-        </div>
-
-        <button type="submit" class="admin-btn admin-btn-primary full">Salvar Aluno</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Add Video Modal -->
-  <div id="videoModal" class="admin-modal hidden" aria-hidden="true">
-    <div class="admin-modal-content">
-      <button class="admin-close-modal" data-close="videoModal" aria-label="Fechar">✕</button>
-      <h3 class="admin-h3">Adicionar Novo Vídeo</h3>
-
-      <form id="videoForm">
-        <div class="admin-form-group">
-          <label for="videoTitle">Título do Vídeo</label>
-          <input type="text" id="videoTitle" required />
-        </div>
-
-        <div class="admin-form-group">
-          <label for="videoCategory">Categoria</label>
-          <select id="videoCategory" required></select>
-        </div>
-
-        <div class="admin-form-group">
-          <label for="videoUrl">URL do Vídeo (YouTube)</label>
-          <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." />
-        </div>
-
-        <div class="admin-form-group">
-          <label for="videoDuration">Duração (texto)</label>
-          <input type="text" id="videoDuration" placeholder="Ex: 20 min" required />
-        </div>
-
-        <div class="admin-form-group">
-          <label for="videoDescription">Descrição</label>
-          <textarea id="videoDescription" rows="3"></textarea>
-        </div>
-
-        <label class="check">
-          <input type="checkbox" id="videoStatus" />
-          <span>Publicar imediatamente</span>
-        </label>
-
-        <button type="submit" class="admin-btn admin-btn-primary full">Salvar Vídeo</button>
-      </form>
-    </div>
+    </section>
   </div>
 
   <script src="app.js"></script>
 </body>
 </html>
+
