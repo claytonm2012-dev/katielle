@@ -296,3 +296,19 @@ body::after{
   backdrop-filter:blur(10px);
 }
 .modal-title{margin:0}
+.video-box{
+  position:relative;
+  width:100%;
+  padding-top:56.25%;
+  border-radius:12px;
+  overflow:hidden;
+  background:#000;
+}
+
+.video-box iframe{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+}
+
