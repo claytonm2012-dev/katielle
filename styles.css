@@ -30,7 +30,7 @@ body{
   padding:24px;
   background:
     linear-gradient(180deg, rgba(0,0,0,.60), rgba(0,0,0,.78)),
-    url("assets/login-bg.jpg") center/cover no-repeat;
+    url("login-bg.jpg") center/cover no-repeat;
 }
 
 .login-card{
@@ -242,6 +242,7 @@ hr{border:none;border-top:1px solid var(--stroke);margin:16px 0}
   .sidebar{display:none}
   .grid3{grid-template-columns:1fr}
 }
+
 
 
 
