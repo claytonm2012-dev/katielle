@@ -1,607 +1,743 @@
-/* =========
-   JSON Load + Local override (admin changes)
-   ========= */
-const STORAGE_KEY = "consultoria_dos_sonhos_data_v1";
-let DATA = null;
+/* ========= CONFIG ========= */
+// Troque aqui a senha do ADM (recomendado)
+const ADMIN_USER = "admin";
+const ADMIN_PASSWORD = "The152max@"; // <- altere se quiser
 
-function $(id){ return document.getElementById(id); }
+/* ========= STORAGE KEYS ========= */
+const KEY_EX = "consultoria_exercises_v1";
+const KEY_ST = "consultoria_students_v1";
+const KEY_PL = "consultoria_plans_v1";
+const KEY_AUTH = "consultoria_auth_v1";
+const KEY_GROUPS = "consultoria_groups_v1";
 
-async function loadData(){
-  const local = localStorage.getItem(STORAGE_KEY);
-  if(local){
-    DATA = JSON.parse(local);
-    return;
-  }
-  const res = await fetch("data.json", { cache: "no-store" });
-  DATA = await res.json();
+/* ========= STATE ========= */
+let groups = ["Peitoral","Costas","Pernas","Ombros","Braços","Abdômen"];
+let exercises = []; // {id,group,name,youtube}
+let students = [];  // {id,name,planMonths,expiresAt,createdAt}
+let plans = {};     // { [studentId]: { [dayName]: [items...] } }
+                   // item: { id, exerciseId, group, name, youtube, sets, reps, rest, note }
+
+/* ========= HELPERS ========= */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function uid(prefix="id"){
+  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
-
-function saveLocal(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA, null, 2));
-}
-
-function setCssVars(){
-  const a = DATA.app || {};
-  document.documentElement.style.setProperty("--primary", a.primaryColor || "#e50914");
-  document.documentElement.style.setProperty("--dark-bg", a.darkBg || "#141414");
-  document.documentElement.style.setProperty("--card-bg", a.cardBg || "#1f1f1f");
-
-  // login bg / hero bg
-  const login = $("loginScreen");
-  if(login) login.style.backgroundImage =
-    `linear-gradient(rgba(0,0,0,.7), rgba(0,0,0,.7)), url('${a.loginBackground || ""}')`;
-
-  const heroCard = document.querySelector(".hero-card");
-  if(heroCard) heroCard.style.backgroundImage = `url('${a.heroBackground || ""}')`;
-
-  // titles
-  const title = DATA.app?.title || "Consultoria Dos Sonhos";
-  document.title = title;
-  if($("brandLogo")) $("brandLogo").textContent = title;
-  if($("studentTitle")) $("studentTitle").textContent = title;
-}
-
-/* =========
-   Helpers
-   ========= */
-function addMonths(dateISO, months){
-  const d = new Date(dateISO + "T00:00:00");
-  const day = d.getDate();
+function nowISO(){ return new Date().toISOString(); }
+function addMonths(date, months){
+  const d = new Date(date);
   d.setMonth(d.getMonth() + Number(months));
-  // handle month rollover
-  if(d.getDate() !== day) d.setDate(0);
   return d;
 }
-
-function fmtDateBR(date){
-  const dd = String(date.getDate()).padStart(2,"0");
-  const mm = String(date.getMonth()+1).padStart(2,"0");
-  const yyyy = date.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
+function fmtDate(iso){
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2,"0");
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const yy = d.getFullYear();
+  return `${dd}/${mm}/${yy}`;
+}
+function daysLeft(iso){
+  const diff = new Date(iso) - new Date();
+  return Math.ceil(diff / (1000*60*60*24));
+}
+function setStatus(msg, ok=true){
+  const pill = $("#statusPill");
+  pill.textContent = msg;
+  pill.style.borderColor = ok ? "rgba(24,195,125,.35)" : "rgba(229,9,20,.55)";
+  pill.style.background = ok ? "rgba(24,195,125,.12)" : "rgba(229,9,20,.12)";
+  pill.style.color = ok ? "#18c37d" : "#ffb9bd";
 }
 
-function youtubeEmbed(url){
+function saveAll(){
+  localStorage.setItem(KEY_GROUPS, JSON.stringify(groups));
+  localStorage.setItem(KEY_EX, JSON.stringify(exercises));
+  localStorage.setItem(KEY_ST, JSON.stringify(students));
+  localStorage.setItem(KEY_PL, JSON.stringify(plans));
+}
+function loadAll(){
+  const g = localStorage.getItem(KEY_GROUPS);
+  const ex = localStorage.getItem(KEY_EX);
+  const st = localStorage.getItem(KEY_ST);
+  const pl = localStorage.getItem(KEY_PL);
+
+  if (g) groups = JSON.parse(g);
+  if (ex) exercises = JSON.parse(ex);
+  if (st) students = JSON.parse(st);
+  if (pl) plans = JSON.parse(pl);
+}
+
+async function loadDefaultsIfEmpty(){
+  // Se já tiver dados, não sobrescreve
+  if (localStorage.getItem(KEY_EX)) return;
+
   try{
-    const u = new URL(url);
-    if(u.hostname.includes("youtu.be")){
-      const id = u.pathname.replace("/","");
-      return `https://www.youtube.com/embed/${id}`;
-    }
-    const v = u.searchParams.get("v");
-    if(v) return `https://www.youtube.com/embed/${v}`;
-    const parts = u.pathname.split("/").filter(Boolean);
-    const idx = parts.indexOf("embed");
-    if(idx >= 0 && parts[idx+1]) return `https://www.youtube.com/embed/${parts[idx+1]}`;
-  }catch(_){}
-  return "";
+    const res = await fetch("data.json", { cache: "no-store" });
+    if(!res.ok) throw new Error("Falha ao ler data.json");
+    const json = await res.json();
+
+    if (Array.isArray(json.groups) && json.groups.length) groups = json.groups;
+    if (Array.isArray(json.exercises)) exercises = json.exercises;
+
+    saveAll();
+  }catch(e){
+    // Se falhar, segue com groups padrão e lista vazia
+    if(!exercises.length) exercises = [];
+    saveAll();
+  }
 }
 
-/* =========
-   UI: Plans
-   ========= */
-function renderPlans(){
-  const root = $("plansList");
-  if(!root) return;
-  root.innerHTML = "";
+/* ========= AUTH ========= */
+function isAuthed(){
+  return localStorage.getItem(KEY_AUTH) === "1";
+}
+function setAuthed(v){
+  localStorage.setItem(KEY_AUTH, v ? "1" : "0");
+}
+function logout(){
+  setAuthed(false);
+  $("#app").classList.add("hidden");
+  $("#loginScreen").classList.remove("hidden");
+}
 
-  (DATA.plans || []).forEach(plan => {
-    const div = document.createElement("div");
-    div.className = "plan-card";
-    div.innerHTML = `
-      <h3 class="plan-title">${plan.title}</h3>
-      <p>${plan.subtitle}</p>
-      <div class="plan-price">${plan.price}</div>
-      <p class="muted">${plan.paymentNote || ""}</p>
-      <ul class="plan-features">
-        ${(plan.features || []).map(f => `<li>✓ ${f}</li>`).join("")}
-      </ul>
-      <button class="btn-plan" type="button">Comprar Plano</button>
-    `;
-    root.appendChild(div);
+/* ========= NAV ========= */
+function showView(view){
+  $$(".view").forEach(v => v.classList.add("hidden"));
+  $(`#view-${view}`).classList.remove("hidden");
+
+  $$(".menu-item").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.menu-item[data-view="${view}"]`).classList.add("active");
+
+  const titles = {
+    dashboard: "Painel Administrativo",
+    alunos: "Alunos",
+    exercicios: "Exercícios",
+    treinos: "Treinos",
+    backup: "Backup"
+  };
+  $("#viewTitle").textContent = titles[view] || "Painel";
+}
+
+/* ========= RENDER: DASH ========= */
+function renderDashboard(){
+  $("#dashStudents").textContent = students.length;
+
+  $("#dashExercises").textContent = exercises.length;
+
+  // conta dias/planos
+  let totalDays = 0;
+  Object.values(plans).forEach(byDay=>{
+    totalDays += Object.keys(byDay || {}).length;
   });
+  $("#dashPlans").textContent = totalDays;
 }
 
-/* =========
-   UI: Student categories/videos
-   ========= */
-function renderStudentCategories(){
-  const root = $("categoriesRoot");
-  if(!root) return;
-  root.innerHTML = "";
+/* ========= RENDER: STUDENTS ========= */
+function renderStudents(){
+  const tbody = $("#studentsTable tbody");
+  tbody.innerHTML = "";
 
-  const cats = DATA.categories || [];
-  const vids = (DATA.videos || []).filter(v => v.published !== false);
+  const sorted = [...students].sort((a,b)=> a.name.localeCompare(b.name,"pt-BR"));
+  sorted.forEach(s=>{
+    const left = daysLeft(s.expiresAt);
+    const active = left >= 0;
 
-  cats.forEach(cat => {
-    const section = document.createElement("section");
-    section.className = "section";
-    section.innerHTML = `
-      <h2 class="section-title">${cat.name}</h2>
-      <div class="carousel-container" data-cat="${cat.id}"></div>
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(s.name)}</td>
+      <td>${s.planMonths} meses</td>
+      <td>${fmtDate(s.expiresAt)} <span class="muted small">(${left}d)</span></td>
+      <td>${active ? `<span class="tag ok">Ativo</span>` : `<span class="tag bad">Vencido</span>`}</td>
+      <td class="right">
+        <button class="icon-btn" data-act="renew" data-id="${s.id}">Renovar</button>
+        <button class="icon-btn" data-act="del" data-id="${s.id}">Excluir</button>
+      </td>
     `;
-    root.appendChild(section);
+    tbody.appendChild(tr);
+  });
 
-    const car = section.querySelector(".carousel-container");
-    vids.filter(v => v.categoryId === cat.id).forEach(v => {
-      const item = document.createElement("div");
-      item.className = "carousel-item";
-      item.innerHTML = `
-        <div class="video-card" data-video="${v.id}">
-          <img src="${v.thumb || "https://placehold.co/300x170"}" alt="Vídeo">
-          <div class="video-meta">
-            <h3>${v.title}</h3>
-            <p>${v.duration || ""}</p>
-            ${typeof v.progress === "number" ? `
-              <div class="progress-bar"><div class="progress" style="width:${v.progress}%"></div></div>
-            ` : ``}
-          </div>
-          <div class="watch-btn">Assistir</div>
-        </div>
-      `;
-      car.appendChild(item);
+  tbody.querySelectorAll("button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.dataset.id;
+      const act = btn.dataset.act;
+      if (act === "del") deleteStudent(id);
+      if (act === "renew") renewStudent(id);
     });
   });
 
-  // bind watch buttons
-  document.querySelectorAll(".video-card .watch-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const card = btn.closest(".video-card");
-      const id = card.getAttribute("data-video");
-      openPlayerById(id);
+  // Select do aluno em Treinos
+  fillStudentsSelect();
+}
+
+/* ========= STUDENTS CRUD ========= */
+function addStudent(){
+  const name = $("#studentName").value.trim();
+  const planMonths = Number($("#studentPlan").value);
+
+  if (!name) return setStatus("Informe o nome do aluno", false);
+
+  const createdAt = nowISO();
+  const expiresAt = addMonths(new Date(), planMonths).toISOString();
+
+  students.push({ id: uid("st"), name, planMonths, createdAt, expiresAt });
+  saveAll();
+
+  $("#studentName").value = "";
+  setStatus("Aluno adicionado", true);
+  renderStudents();
+  renderDashboard();
+}
+
+function deleteStudent(id){
+  if(!confirm("Excluir aluno? Isso apaga também os treinos dele.")) return;
+
+  students = students.filter(s=>s.id!==id);
+  delete plans[id];
+  saveAll();
+
+  setStatus("Aluno excluído", true);
+  renderStudents();
+  renderPlansPreview(); // se estiver aberto
+  renderDashboard();
+}
+
+function renewStudent(id){
+  const s = students.find(x=>x.id===id);
+  if(!s) return;
+
+  const months = prompt("Renovar por quantos meses? (3 / 6 / 12)", String(s.planMonths)) || "";
+  const m = Number(months);
+  if(![3,6,12].includes(m)) return setStatus("Valor inválido. Use 3, 6 ou 12.", false);
+
+  s.planMonths = m;
+  s.expiresAt = addMonths(new Date(), m).toISOString();
+  saveAll();
+
+  setStatus("Plano renovado", true);
+  renderStudents();
+}
+
+/* ========= EXERCISES ========= */
+function fillGroupsSelects(){
+  const exGroup = $("#exGroup");
+  const planGroup = $("#planGroup");
+  const filterGroup = $("#filterGroup");
+  const editGroup = $("#editGroup");
+
+  [exGroup, planGroup, editGroup].forEach(sel=>{
+    sel.innerHTML = "";
+    groups.forEach(g=>{
+      const o = document.createElement("option");
+      o.value = g; o.textContent = g;
+      sel.appendChild(o);
     });
   });
-}
 
-/* =========
-   Player
-   ========= */
-let currentVideoIndex = -1;
-let currentPlaylist = [];
-
-function openPlayerById(videoId){
-  const vids = (DATA.videos || []).filter(v => v.published !== false);
-  currentPlaylist = vids;
-  currentVideoIndex = vids.findIndex(v => v.id === videoId);
-  if(currentVideoIndex < 0) return;
-  openPlayer(vids[currentVideoIndex]);
-}
-
-function openPlayer(video){
-  const overlay = $("playerOverlay");
-  const frame = $("videoFrame");
-  const title = $("playerTitle");
-
-  const embed = youtubeEmbed(video.youtubeUrl || "");
-  title.textContent = video.title || "Vídeo";
-  frame.src = embed || "";
-
-  overlay.style.display = "flex";
-  overlay.setAttribute("aria-hidden", "false");
-  document.body.style.overflow = "hidden";
-}
-
-function closePlayer(){
-  const overlay = $("playerOverlay");
-  const frame = $("videoFrame");
-
-  overlay.style.display = "none";
-  overlay.setAttribute("aria-hidden", "true");
-  document.body.style.overflow = "auto";
-  frame.src = "";
-}
-
-function nextVideo(){
-  if(!currentPlaylist.length) return;
-  const next = currentVideoIndex + 1;
-  if(next >= currentPlaylist.length) return;
-  currentVideoIndex = next;
-  openPlayer(currentPlaylist[currentVideoIndex]);
-}
-
-/* =========
-   Admin: tabs + tables + modals
-   ========= */
-function showAdminTab(tabId){
-  document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".admin-tab-content").forEach(c => c.classList.remove("active"));
-
-  document.querySelectorAll(`.admin-tab[data-tab="${tabId}"]`).forEach(t => t.classList.add("active"));
-  const content = $(tabId);
-  if(content) content.classList.add("active");
-}
-
-function renderStats(){
-  const root = $("statsCards");
-  if(!root) return;
-
-  const s = DATA.dashboardStats || {};
-  root.innerHTML = `
-    <div class="admin-card">
-      <h3 class="admin-h3">Total de Alunos</h3>
-      <p style="font-size:32px;color:var(--primary);font-weight:900;margin:0">${s.totalStudents ?? 0}</p>
-    </div>
-    <div class="admin-card">
-      <h3 class="admin-h3">Vídeos Disponíveis</h3>
-      <p style="font-size:32px;color:var(--primary);font-weight:900;margin:0">${s.totalVideos ?? 0}</p>
-    </div>
-    <div class="admin-card">
-      <h3 class="admin-h3">Aulas Concluídas</h3>
-      <p style="font-size:32px;color:var(--primary);font-weight:900;margin:0">${s.lessonsCompleted ?? 0}</p>
-    </div>
-  `;
-}
-
-function renderStudentsTables(){
-  const tbody = $("studentsTbody");
-  const recent = $("recentStudentsTbody");
-  const students = DATA.auth?.students || [];
-
-  const rows = students.map(st => {
-    const end = fmtDateBR(addMonths(st.startDate, st.planMonths));
-    const planLabel = `${st.planMonths} meses`;
-    const status = st.status === "active" ? `<span style="color:#22c55e">Ativo</span>` : `<span style="color:#f59e0b">Pendente</span>`;
-    return `
-      <tr>
-        <td>${st.name || ""}</td>
-        <td>${st.email || ""}</td>
-        <td>${planLabel}</td>
-        <td>${end}</td>
-        <td>${status}</td>
-        <td>
-          <button class="admin-btn admin-btn-danger" data-del-student="${st.id}">Excluir</button>
-        </td>
-      </tr>
-    `;
-  }).join("");
-
-  if(tbody) tbody.innerHTML = rows || `<tr><td colspan="6" class="muted">Sem alunos.</td></tr>`;
-  if(recent) recent.innerHTML = rows.split("</tr>").slice(0,2).join("</tr>") || `<tr><td colspan="5" class="muted">Sem alunos.</td></tr>`;
-
-  document.querySelectorAll("[data-del-student]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-del-student");
-      DATA.auth.students = DATA.auth.students.filter(s => s.id !== id);
-      saveLocal();
-      renderStudentsTables();
-    });
-  });
-}
-
-function renderVideosTable(){
-  const tbody = $("videosTbody");
-  const vids = DATA.videos || [];
-  const catMap = new Map((DATA.categories || []).map(c => [c.id, c.name]));
-
-  tbody.innerHTML = vids.map(v => {
-    const status = v.published !== false ? `<span style="color:#22c55e">Publicado</span>` : `<span style="color:#f59e0b">Rascunho</span>`;
-    return `
-      <tr>
-        <td>${v.title || ""}</td>
-        <td>${catMap.get(v.categoryId) || v.categoryId || ""}</td>
-        <td>${v.duration || ""}</td>
-        <td>${status}</td>
-        <td>
-          <button class="admin-btn admin-btn-danger" data-del-video="${v.id}">Excluir</button>
-        </td>
-      </tr>
-    `;
-  }).join("") || `<tr><td colspan="5" class="muted">Sem vídeos.</td></tr>`;
-
-  document.querySelectorAll("[data-del-video]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-del-video");
-      DATA.videos = DATA.videos.filter(v => v.id !== id);
-      saveLocal();
-      renderVideosTable();
-      renderStudentCategories();
-    });
+  filterGroup.innerHTML = "";
+  const all = document.createElement("option");
+  all.value = "__ALL__";
+  all.textContent = "Todos os grupos";
+  filterGroup.appendChild(all);
+  groups.forEach(g=>{
+    const o = document.createElement("option");
+    o.value = g; o.textContent = g;
+    filterGroup.appendChild(o);
   });
 }
 
 function renderExercises(){
-  const root = $("exercisesRoot");
-  if(!root) return;
-  root.innerHTML = "";
+  const tbody = $("#exercisesTable tbody");
+  tbody.innerHTML = "";
 
-  (DATA.exercises || []).forEach(group => {
-    const block = document.createElement("div");
-    block.className = "exercise-category";
-    block.innerHTML = `
-      <h4 style="margin:0;font-weight:900">${group.name}</h4>
-      <div class="exercise-list">
-        ${(group.items || []).map(i => `<div class="exercise-item">${i}</div>`).join("")}
-      </div>
+  const filter = $("#filterGroup").value || "__ALL__";
+  const q = ($("#searchExercise").value || "").trim().toLowerCase();
+
+  let list = [...exercises];
+  if (filter !== "__ALL__") list = list.filter(e=>e.group===filter);
+  if (q) list = list.filter(e=> (e.name||"").toLowerCase().includes(q));
+
+  list.sort((a,b)=> a.group.localeCompare(b.group,"pt-BR") || a.name.localeCompare(b.name,"pt-BR"));
+
+  list.forEach(e=>{
+    const has = (e.youtube||"").trim().length > 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(e.group)}</td>
+      <td>${escapeHtml(e.name)}</td>
+      <td>${has ? `<a class="link" href="${escapeAttr(e.youtube)}" target="_blank" rel="noopener">Abrir</a>` : `<span class="muted">—</span>`}</td>
+      <td class="right">
+        <button class="icon-btn" data-act="edit" data-id="${e.id}">Editar</button>
+        <button class="icon-btn" data-act="del" data-id="${e.id}">Excluir</button>
+      </td>
     `;
-    block.addEventListener("click", () => {
-      const list = block.querySelector(".exercise-list");
-      list.style.display = list.style.display === "block" ? "none" : "block";
-    });
-    root.appendChild(block);
-  });
-}
-
-function renderThemes(){
-  const row = $("themesRow");
-  if(!row) return;
-  row.innerHTML = "";
-
-  const themes = DATA.themes || [];
-  const selectedId = DATA.app?.selectedThemeId || themes[0]?.id;
-
-  themes.forEach(t => {
-    const div = document.createElement("div");
-    div.className = "theme-preview" + (t.id === selectedId ? " selected" : "");
-    div.style.background = `linear-gradient(to right, ${t.gradient[0]}, ${t.gradient[1]})`;
-    div.title = t.name;
-    div.addEventListener("click", () => {
-      DATA.app.selectedThemeId = t.id;
-      // apply primary color as first gradient color (opcional)
-      DATA.app.primaryColor = t.gradient[0];
-      saveLocal();
-      setCssVars();
-      renderThemes();
-    });
-    row.appendChild(div);
-  });
-}
-
-/* =========
-   Modals
-   ========= */
-function openModal(id){
-  const m = $(id);
-  if(!m) return;
-  m.classList.remove("hidden");
-  m.setAttribute("aria-hidden", "false");
-}
-function closeModal(id){
-  const m = $(id);
-  if(!m) return;
-  m.classList.add("hidden");
-  m.setAttribute("aria-hidden", "true");
-}
-
-/* =========
-   Forms
-   ========= */
-function fillPlanSelects(){
-  const sel = $("studentPlan");
-  if(!sel) return;
-  sel.innerHTML = `<option value="">Selecione um plano</option>` +
-    (DATA.plans || []).map(p => `<option value="${p.months}">${p.months} meses</option>`).join("");
-}
-
-function fillVideoCategorySelect(){
-  const sel = $("videoCategory");
-  if(!sel) return;
-  sel.innerHTML = `<option value="">Selecione uma categoria</option>` +
-    (DATA.categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join("");
-}
-
-function uid(prefix){
-  return (prefix || "id") + "_" + Math.random().toString(16).slice(2) + Date.now().toString(16);
-}
-
-/* =========
-   Auth / Navigation
-   ========= */
-function showLogin(){
-  $("loginScreen").style.display = "flex";
-  $("studentDashboard").classList.add("hidden");
-  $("adminDashboard").classList.add("hidden");
-}
-
-function showStudent(){
-  $("loginScreen").style.display = "none";
-  $("studentDashboard").classList.remove("hidden");
-  $("adminDashboard").classList.add("hidden");
-}
-
-function showAdmin(){
-  $("loginScreen").style.display = "none";
-  $("studentDashboard").classList.add("hidden");
-  $("adminDashboard").classList.remove("hidden");
-}
-
-/* =========
-   Main bindings
-   ========= */
-function bindEvents(){
-  // login
-  $("loginForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-
-    const u = $("username").value.trim();
-    const p = $("password").value;
-
-    const err = $("loginErrorMessage");
-    err.style.display = "none";
-
-    const admin = DATA.auth?.admin;
-    if(admin && u === admin.username && p === admin.password){
-      showAdmin();
-      renderAdminAll();
-      return;
-    }
-
-    const students = DATA.auth?.students || [];
-    const student = students.find(s => s.username === u && s.password === p);
-    if(student){
-      showStudent();
-      renderStudentCategories();
-      return;
-    }
-
-    err.style.display = "block";
-    setTimeout(()=> err.style.display = "none", 3000);
+    tbody.appendChild(tr);
   });
 
-  // logout
-  $("logoutBtn").addEventListener("click", () => {
-    $("username").value = "";
-    $("password").value = "";
-    showLogin();
-  });
-
-  $("adminLogout").addEventListener("click", (e) => {
-    e.preventDefault();
-    $("username").value = "";
-    $("password").value = "";
-    showLogin();
-  });
-
-  // player
-  $("playHero").addEventListener("click", () => {
-    // abre o primeiro vídeo publicado
-    const first = (DATA.videos || []).find(v => v.published !== false);
-    if(first) openPlayerById(first.id);
-  });
-
-  $("closePlayer").addEventListener("click", closePlayer);
-  $("playerOverlay").addEventListener("click", (e) => {
-    if(e.target === $("playerOverlay")) closePlayer();
-  });
-
-  $("nextVideoBtn").addEventListener("click", nextVideo);
-
-  // admin tabs
-  document.querySelectorAll(".admin-tab").forEach(btn => {
-    btn.addEventListener("click", () => showAdminTab(btn.getAttribute("data-tab")));
-  });
-
-  // sidebar links (tab)
-  document.querySelectorAll(".side-link[data-tab]").forEach(a => {
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      showAdminTab(a.getAttribute("data-tab"));
+  tbody.querySelectorAll("button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.dataset.id;
+      const act = btn.dataset.act;
+      if (act === "del") deleteExercise(id);
+      if (act === "edit") openEditExercise(id);
     });
   });
 
-  // open modals
-  $("addStudentBtn").addEventListener("click", () => openModal("studentModal"));
-  $("addVideoBtn").addEventListener("click", () => openModal("videoModal"));
-
-  // close modal buttons
-  document.querySelectorAll("[data-close]").forEach(btn => {
-    btn.addEventListener("click", () => closeModal(btn.getAttribute("data-close")));
-  });
-
-  // close on backdrop click
-  ["studentModal","videoModal"].forEach(id => {
-    const modal = $(id);
-    modal.addEventListener("click", (e) => {
-      if(e.target === modal) closeModal(id);
-    });
-  });
-
-  // add student
-  $("studentForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-
-    const st = {
-      id: uid("s"),
-      name: $("studentName").value.trim(),
-      email: $("studentEmail").value.trim(),
-      username: $("studentUsername").value.trim(),
-      password: $("studentPassword").value,
-      planMonths: Number($("studentPlan").value),
-      startDate: $("studentAccess").value,
-      status: "active"
-    };
-
-    DATA.auth.students.push(st);
-    saveLocal();
-    renderStudentsTables();
-    closeModal("studentModal");
-    e.target.reset();
-    alert("Aluno adicionado com sucesso!");
-  });
-
-  // add video
-  $("videoForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-
-    const v = {
-      id: uid("v"),
-      title: $("videoTitle").value.trim(),
-      categoryId: $("videoCategory").value,
-      duration: $("videoDuration").value.trim(),
-      thumb: "https://placehold.co/300x170",
-      progress: null,
-      youtubeUrl: $("videoUrl").value.trim(),
-      published: $("videoStatus").checked,
-      description: $("videoDescription").value.trim()
-    };
-
-    DATA.videos.push(v);
-    saveLocal();
-    renderVideosTable();
-    renderStudentCategories();
-    closeModal("videoModal");
-    e.target.reset();
-    alert("Vídeo adicionado com sucesso!");
-  });
-
-  // themes save (preview only)
-  $("saveThemeBtn").addEventListener("click", () => {
-    saveLocal();
-    alert("Tema salvo (no navegador).");
-  });
-
-  // image preview (optional): just stores as dataURL locally
-  $("backgroundImage").addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if(!file) return;
-    const url = await fileToDataURL(file);
-    DATA.app.loginBackground = url;
-    DATA.app.heroBackground = url;
-    saveLocal();
-    setCssVars();
-  });
-
-  $("customLogo").addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if(!file) return;
-    const url = await fileToDataURL(file);
-    // store and show on login title as simple text replacement not possible.
-    // for now we keep it as data (ready for a future img logo)
-    DATA.app.customLogoDataUrl = url;
-    saveLocal();
-    alert("Logo salvo (no navegador).");
-  });
+  // Atualiza o select de exercício nos treinos
+  fillPlanExerciseSelect();
+  renderDashboard();
 }
 
-function fileToDataURL(file){
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
+function addExercise(){
+  const group = $("#exGroup").value;
+  const name = $("#exName").value.trim();
+  const youtube = $("#exYoutube").value.trim();
 
-function renderAdminAll(){
-  renderStats();
-  renderStudentsTables();
-  renderVideosTable();
-  renderThemes();
+  if (!name) return setStatus("Digite o nome do exercício", false);
+
+  exercises.push({ id: uid("ex"), group, name, youtube });
+  saveAll();
+
+  $("#exName").value = "";
+  $("#exYoutube").value = "";
+  setStatus("Exercício adicionado", true);
   renderExercises();
-  fillPlanSelects();
-  fillVideoCategorySelect();
 }
 
-/* =========
-   Init
-   ========= */
-(async function init(){
-  await loadData();
-  setCssVars();
-  renderPlans();
-  fillPlanSelects();
-  fillVideoCategorySelect();
-  bindEvents();
+function deleteExercise(id){
+  if(!confirm("Excluir exercício?")) return;
 
-  // se quiser exibir planos na tela de login:
-  $("plansSection").style.display = "block";
+  exercises = exercises.filter(e=>e.id!==id);
+
+  // também remove do treino onde estiver
+  Object.keys(plans).forEach(stId=>{
+    const byDay = plans[stId] || {};
+    Object.keys(byDay).forEach(day=>{
+      byDay[day] = (byDay[day]||[]).filter(it=>it.exerciseId!==id);
+    });
+  });
+
+  saveAll();
+  setStatus("Exercício excluído", true);
+  renderExercises();
+  renderPlansPreview();
+}
+
+/* ========= EDIT MODAL ========= */
+let editingExerciseId = null;
+
+function openEditExercise(id){
+  const e = exercises.find(x=>x.id===id);
+  if(!e) return;
+
+  editingExerciseId = id;
+  $("#editGroup").value = e.group;
+  $("#editName").value = e.name || "";
+  $("#editYoutube").value = e.youtube || "";
+
+  $("#modal").classList.remove("hidden");
+}
+function closeModal(){
+  $("#modal").classList.add("hidden");
+  editingExerciseId = null;
+}
+function saveEditExercise(){
+  const e = exercises.find(x=>x.id===editingExerciseId);
+  if(!e) return;
+
+  e.group = $("#editGroup").value;
+  e.name = $("#editName").value.trim();
+  e.youtube = $("#editYoutube").value.trim();
+
+  if(!e.name) return setStatus("Nome do exercício não pode ficar vazio", false);
+
+  // Atualiza nos planos (para manter nome e grupo sincronizados)
+  Object.keys(plans).forEach(stId=>{
+    const byDay = plans[stId] || {};
+    Object.keys(byDay).forEach(day=>{
+      (byDay[day]||[]).forEach(it=>{
+        if(it.exerciseId === e.id){
+          it.group = e.group;
+          it.name = e.name;
+          it.youtube = e.youtube;
+        }
+      });
+    });
+  });
+
+  saveAll();
+  setStatus("Exercício atualizado", true);
+  closeModal();
+  renderExercises();
+  renderPlansPreview();
+}
+function deleteFromModal(){
+  if(!editingExerciseId) return;
+  closeModal();
+  deleteExercise(editingExerciseId);
+}
+
+/* ========= PLANS / TREINOS ========= */
+function fillStudentsSelect(){
+  const sel = $("#planStudent");
+  sel.innerHTML = "";
+
+  const sorted = [...students].sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+  sorted.forEach(s=>{
+    const o = document.createElement("option");
+    o.value = s.id;
+    o.textContent = s.name;
+    sel.appendChild(o);
+  });
+
+  renderPlansPreview();
+}
+
+function fillPlanExerciseSelect(){
+  const group = $("#planGroup").value;
+  const sel = $("#planExercise");
+  sel.innerHTML = "";
+
+  const list = exercises.filter(e=>e.group===group).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+  list.forEach(e=>{
+    const o = document.createElement("option");
+    o.value = e.id;
+    o.textContent = e.name;
+    sel.appendChild(o);
+  });
+}
+
+function addToPlan(){
+  const studentId = $("#planStudent").value;
+  if(!studentId) return setStatus("Cadastre um aluno primeiro", false);
+
+  const day = $("#planDay").value;
+  const group = $("#planGroup").value;
+  const exerciseId = $("#planExercise").value;
+  const ex = exercises.find(e=>e.id===exerciseId);
+
+  if(!ex) return setStatus("Selecione um exercício", false);
+
+  const sets = String($("#planSets").value || "").trim();
+  const reps = String($("#planReps").value || "").trim();
+  const rest = String($("#planRest").value || "").trim();
+  const note = String($("#planNote").value || "").trim();
+
+  if(!plans[studentId]) plans[studentId] = {};
+  if(!plans[studentId][day]) plans[studentId][day] = [];
+
+  plans[studentId][day].push({
+    id: uid("it"),
+    exerciseId: ex.id,
+    group,
+    name: ex.name,
+    youtube: ex.youtube,
+    sets: sets || "3",
+    reps: reps || "8-12",
+    rest: rest || "60s",
+    note
+  });
+
+  saveAll();
+  setStatus("Adicionado ao treino", true);
+
+  $("#planReps").value = "";
+  $("#planRest").value = "";
+  $("#planNote").value = "";
+
+  renderPlansPreview();
+  renderDashboard();
+}
+
+function renderPlansPreview(){
+  const wrap = $("#planPreview");
+  if(!wrap) return;
+
+  const studentId = $("#planStudent").value;
+  if(!studentId){
+    wrap.innerHTML = `<div class="muted">Cadastre um aluno para montar o treino.</div>`;
+    return;
+  }
+
+  const byDay = plans[studentId] || {};
+  const days = Object.keys(byDay);
+
+  if(!days.length){
+    wrap.innerHTML = `<div class="muted">Nenhum treino criado para este aluno ainda.</div>`;
+    return;
+  }
+
+  // ordem amigável
+  const order = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo","A","B","C","D"];
+  days.sort((a,b)=> order.indexOf(a) - order.indexOf(b));
+
+  wrap.innerHTML = "";
+  days.forEach(day=>{
+    const items = byDay[day] || [];
+    const box = document.createElement("div");
+    box.className = "plan-day";
+
+    const htmlItems = items.map((it, idx)=>`
+      <div class="plan-item">
+        <div>
+          <div><b>${escapeHtml(it.name)}</b> <span class="muted">(${escapeHtml(it.group)})</span></div>
+          <div class="muted">${it.youtube ? `<a class="link" target="_blank" rel="noopener" href="${escapeAttr(it.youtube)}">ver vídeo</a>` : "sem vídeo"}</div>
+        </div>
+        <div><span class="muted">Séries</span><br><b>${escapeHtml(it.sets)}</b></div>
+        <div><span class="muted">Reps</span><br><b>${escapeHtml(it.reps)}</b></div>
+        <div><span class="muted">Desc</span><br><b>${escapeHtml(it.rest)}</b></div>
+        <div class="muted">${escapeHtml(it.note || "")}</div>
+        <div class="row gap">
+          <button class="icon-btn" data-act="up" data-day="${escapeAttr(day)}" data-id="${it.id}">↑</button>
+          <button class="icon-btn" data-act="down" data-day="${escapeAttr(day)}" data-id="${it.id}">↓</button>
+          <button class="icon-btn" data-act="del" data-day="${escapeAttr(day)}" data-id="${it.id}">✕</button>
+        </div>
+      </div>
+    `).join("");
+
+    box.innerHTML = `
+      <div class="row between">
+        <h4>${escapeHtml(day)}</h4>
+        <span class="muted">${items.length} exercício(s)</span>
+      </div>
+      ${htmlItems}
+    `;
+    wrap.appendChild(box);
+  });
+
+  wrap.querySelectorAll("button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const act = btn.dataset.act;
+      const day = btn.dataset.day;
+      const id = btn.dataset.id;
+      if(act==="del") removePlanItem(studentId, day, id);
+      if(act==="up") movePlanItem(studentId, day, id, -1);
+      if(act==="down") movePlanItem(studentId, day, id, +1);
+    });
+  });
+}
+
+function removePlanItem(studentId, day, itemId){
+  const list = (plans[studentId]?.[day]) || [];
+  plans[studentId][day] = list.filter(it=>it.id!==itemId);
+
+  if(plans[studentId][day].length === 0){
+    delete plans[studentId][day];
+  }
+  saveAll();
+  setStatus("Item removido", true);
+  renderPlansPreview();
+  renderDashboard();
+}
+
+function movePlanItem(studentId, day, itemId, dir){
+  const list = (plans[studentId]?.[day]) || [];
+  const i = list.findIndex(it=>it.id===itemId);
+  if(i<0) return;
+  const j = i + dir;
+  if(j<0 || j>=list.length) return;
+
+  const tmp = list[i];
+  list[i] = list[j];
+  list[j] = tmp;
+
+  plans[studentId][day] = list;
+  saveAll();
+  renderPlansPreview();
+}
+
+function clearDay(){
+  const studentId = $("#planStudent").value;
+  const day = $("#planDay").value;
+  if(!studentId) return;
+
+  if(!confirm(`Limpar o dia "${day}" deste aluno?`)) return;
+
+  if(plans[studentId]) delete plans[studentId][day];
+  saveAll();
+  setStatus("Dia limpo", true);
+  renderPlansPreview();
+  renderDashboard();
+}
+
+function clearAllPlans(){
+  const studentId = $("#planStudent").value;
+  if(!studentId) return;
+
+  if(!confirm("Apagar TODOS os treinos deste aluno?")) return;
+
+  delete plans[studentId];
+  saveAll();
+  setStatus("Treinos apagados", true);
+  renderPlansPreview();
+  renderDashboard();
+}
+
+/* ========= BACKUP ========= */
+function exportJSON(){
+  const payload = {
+    version: 1,
+    exportedAt: nowISO(),
+    groups,
+    exercises,
+    students,
+    plans
+  };
+  const text = JSON.stringify(payload, null, 2);
+  $("#backupText").value = text;
+
+  // download automático
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `backup_consultoria_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  setStatus("Backup exportado", true);
+}
+
+function importJSON(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const obj = JSON.parse(reader.result);
+
+      if(!obj || obj.version !== 1) throw new Error("Arquivo inválido");
+      groups = obj.groups || groups;
+      exercises = obj.exercises || [];
+      students = obj.students || [];
+      plans = obj.plans || {};
+
+      saveAll();
+
+      setStatus("Backup importado", true);
+      fillGroupsSelects();
+      renderExercises();
+      renderStudents();
+      renderPlansPreview();
+      renderDashboard();
+    }catch(e){
+      setStatus("Falha ao importar JSON", false);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ========= SAFE HTML ========= */
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+function escapeAttr(s){ return escapeHtml(s).replaceAll("`",""); }
+
+/* ========= INIT ========= */
+function bindEvents(){
+  // Login
+  $("#btnLogin").addEventListener("click", ()=>{
+    const u = ($("#loginUser").value || "").trim();
+    const p = ($("#loginPass").value || "").trim();
+
+    if(u === ADMIN_USER && p === ADMIN_PASSWORD){
+      setAuthed(true);
+      $("#loginMsg").textContent = "";
+      $("#loginScreen").classList.add("hidden");
+      $("#app").classList.remove("hidden");
+      setStatus("Logado", true);
+      bootAppUI();
+    }else{
+      $("#loginMsg").textContent = "Usuário ou senha inválidos.";
+      setStatus("Erro", false);
+    }
+  });
+
+  $("#btnLogout").addEventListener("click", logout);
+
+  // Menu
+  $$(".menu-item").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      showView(btn.dataset.view);
+      // render por view
+      if(btn.dataset.view==="dashboard") renderDashboard();
+      if(btn.dataset.view==="alunos") renderStudents();
+      if(btn.dataset.view==="exercicios") renderExercises();
+      if(btn.dataset.view==="treinos") renderPlansPreview();
+    });
+  });
+
+  // Atalhos
+  $$("[data-go]").forEach(b=>{
+    b.addEventListener("click", ()=> showView(b.dataset.go));
+  });
+
+  // Alunos
+  $("#btnAddStudent").addEventListener("click", addStudent);
+
+  // Exercícios
+  $("#btnAddExercise").addEventListener("click", addExercise);
+  $("#filterGroup").addEventListener("change", renderExercises);
+  $("#searchExercise").addEventListener("input", renderExercises);
+
+  // Modal
+  $("#btnCloseModal").addEventListener("click", closeModal);
+  $("#btnSaveExercise").addEventListener("click", saveEditExercise);
+  $("#btnDeleteExercise").addEventListener("click", deleteFromModal);
+  $("#modal").addEventListener("click", (e)=>{
+    if(e.target.id==="modal") closeModal();
+  });
+
+  // Treinos
+  $("#planGroup").addEventListener("change", ()=> {
+    fillPlanExerciseSelect();
+  });
+  $("#planStudent").addEventListener("change", renderPlansPreview);
+  $("#planDay").addEventListener("change", renderPlansPreview);
+  $("#btnAddToPlan").addEventListener("click", addToPlan);
+  $("#btnClearDay").addEventListener("click", clearDay);
+  $("#btnClearAllPlans").addEventListener("click", clearAllPlans);
+
+  // Backup
+  $("#btnExport").addEventListener("click", exportJSON);
+  $("#importFile").addEventListener("change", (e)=>{
+    const f = e.target.files?.[0];
+    if(f) importJSON(f);
+    e.target.value = "";
+  });
+}
+
+function bootAppUI(){
+  // selects
+  fillGroupsSelects();
+  fillStudentsSelect();
+  fillPlanExerciseSelect();
+
+  // render geral
+  renderDashboard();
+  renderStudents();
+  renderExercises();
+  renderPlansPreview();
+
+  showView("dashboard");
+}
+
+(async function init(){
+  bindEvents();
+  loadAll();
+  await loadDefaultsIfEmpty();
+
+  // Se já estava logado
+  if(isAuthed()){
+    $("#loginScreen").classList.add("hidden");
+    $("#app").classList.remove("hidden");
+    setStatus("OK", true);
+    bootAppUI();
+  }else{
+    $("#loginScreen").classList.remove("hidden");
+    $("#app").classList.add("hidden");
+  }
 })();
+
