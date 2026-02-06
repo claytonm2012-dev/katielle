@@ -101,15 +101,15 @@
       <div class="grid3">
         <div class="card">
           <div class="card-title">Alunos</div>
-          <div id="dashStudents" class="big">0</div>
+          <div id="dashStudents" class="big">—</div>
         </div>
         <div class="card">
           <div class="card-title">Exercícios</div>
-          <div id="dashExercises" class="big">0</div>
+          <div id="dashExercises" class="big">—</div>
         </div>
         <div class="card">
           <div class="card-title">Dias/Blocos</div>
-          <div id="dashPlans" class="big">0</div>
+          <div id="dashPlans" class="big">—</div>
         </div>
       </div>
     </section>
@@ -159,7 +159,7 @@
         <div class="row wrap gap">
           <select id="exGroup"></select>
           <input id="exName" placeholder="Nome do exercício">
-          <input id="exYoutube" placeholder="Link YouTube">
+          <input id="exYoutube" placeholder="Link YouTube (watch ou youtu.be)">
           <button id="btnAddExercise" class="btn primary" type="button">Adicionar</button>
         </div>
 
@@ -206,7 +206,6 @@
           <select id="planStudent"></select>
 
           <select id="planDay"></select>
-          <button id="btnAddModel" class="btn" type="button">+ Modelo</button>
 
           <select id="planGroup"></select>
           <select id="planExercise"></select>
@@ -283,10 +282,7 @@
   </main>
 </section>
 
-<!-- ✅ IMPORTANTE: app.js PRECISA ser module (Firebase ES Modules) -->
 <script type="module" src="app.js"></script>
-
 </body>
 </html>
-
 
