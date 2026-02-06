@@ -61,6 +61,16 @@ function youtubeToEmbed(url){
   return "";
 }
 
+// evita HTML quebrar na grid do aluno
+function escapeHtml(str){
+  return String(str ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
 /* =========================
    HASH
 ========================= */
@@ -135,6 +145,7 @@ function showView(v){
     exercicios:"Exercícios",
     treinos:"Treinos",
     backup:"Backup",
+    videos:"Vídeos",            // ✅ novo
     meutreino:"Meu Treino"
   };
   $("#viewTitle").textContent = titles[v] || "Painel";
@@ -292,8 +303,8 @@ function renderStudents(){
   students.forEach(s=>{
     tb.innerHTML += `
       <tr>
-        <td>${s.name}</td>
-        <td>${s.username}</td>
+        <td>${escapeHtml(s.name)}</td>
+        <td>${escapeHtml(s.username)}</td>
         <td>${s.planMonths}m</td>
         <td>${fmtDate(s.expiresAt)} (${daysLeft(s.expiresAt)}d)</td>
         <td>${daysLeft(s.expiresAt)>=0 ? "Ativo" : "Vencido"}</td>
@@ -328,6 +339,7 @@ function addExercise(){
   setStatus("Exercício adicionado",true);
   renderExercises();
   renderDashboard();
+  renderVideosStudent(); // ✅ atualiza tela de vídeos do aluno se estiver aberta
 }
 
 function renderExercises(){
@@ -341,8 +353,8 @@ function renderExercises(){
     .forEach(e=>{
       tb.innerHTML += `
         <tr>
-          <td>${e.group}</td>
-          <td>${e.name}</td>
+          <td>${escapeHtml(e.group)}</td>
+          <td>${escapeHtml(e.name)}</td>
           <td>${e.youtube ? "Embed" : "—"}</td>
           <td><button class="btn danger" type="button" onclick="deleteExercise('${e.id}')">Excluir</button></td>
         </tr>`;
@@ -351,6 +363,7 @@ function renderExercises(){
   // atualiza lista do treino também
   fillPlanExercises();
 }
+
 window.deleteExercise = function(id){
   if(!confirm("Excluir exercício?")) return;
   exercises = exercises.filter(e=>e.id!==id);
@@ -365,6 +378,7 @@ window.deleteExercise = function(id){
   saveAll();
   renderExercises();
   renderDashboard();
+  renderVideosStudent(); // ✅ atualiza tela de vídeos do aluno
 };
 
 /* =========================
@@ -401,6 +415,7 @@ function bindBulk(){
     setStatus(`Lote salvo: ${count} exercícios`,true);
     renderExercises();
     renderDashboard();
+    renderVideosStudent(); // ✅
   };
 }
 
@@ -466,7 +481,7 @@ function renderPlansAdmin(){
   Object.keys(plans[sid]).forEach(day=>{
     const dayDiv=document.createElement("div");
     dayDiv.className="day";
-    dayDiv.innerHTML = `<b>${day}</b>`;
+    dayDiv.innerHTML = `<b>${escapeHtml(day)}</b>`;
     box.appendChild(dayDiv);
 
     plans[sid][day].forEach(it=>{
@@ -475,8 +490,8 @@ function renderPlansAdmin(){
       const emb=youtubeToEmbed(it.youtube);
 
       item.innerHTML = `
-        <div><b>${it.name}</b> (${it.group}) — ${it.sets}x${it.reps} • Descanso: ${it.rest}</div>
-        ${it.note ? `<div class="muted">Obs: ${it.note}</div>` : ``}
+        <div><b>${escapeHtml(it.name)}</b> (${escapeHtml(it.group)}) — ${escapeHtml(it.sets)}x${escapeHtml(it.reps)} • Descanso: ${escapeHtml(it.rest)}</div>
+        ${it.note ? `<div class="muted">Obs: ${escapeHtml(it.note)}</div>` : ``}
         ${emb ? `<div class="video-box"><iframe src="${emb}" allowfullscreen></iframe></div>` : ``}
       `;
       dayDiv.appendChild(item);
@@ -498,7 +513,7 @@ function renderPlansStudent(){
   Object.keys(plans[sid]).forEach(day=>{
     const dayDiv=document.createElement("div");
     dayDiv.className="day";
-    dayDiv.innerHTML = `<b>${day}</b>`;
+    dayDiv.innerHTML = `<b>${escapeHtml(day)}</b>`;
     box.appendChild(dayDiv);
 
     plans[sid][day].forEach(it=>{
@@ -507,8 +522,8 @@ function renderPlansStudent(){
       const emb=youtubeToEmbed(it.youtube);
 
       item.innerHTML = `
-        <div><b>${it.name}</b> (${it.group}) — ${it.sets}x${it.reps} • ${it.rest}</div>
-        ${it.note ? `<div class="muted">Obs: ${it.note}</div>` : ``}
+        <div><b>${escapeHtml(it.name)}</b> (${escapeHtml(it.group)}) — ${escapeHtml(it.sets)}x${escapeHtml(it.reps)} • ${escapeHtml(it.rest)}</div>
+        ${it.note ? `<div class="muted">Obs: ${escapeHtml(it.note)}</div>` : ``}
         ${emb ? `<div class="video-box"><iframe src="${emb}" allowfullscreen></iframe></div>` : ``}
       `;
       dayDiv.appendChild(item);
@@ -542,6 +557,57 @@ function clearAllPlans(){
 }
 
 /* =========================
+   VÍDEOS (ALUNO) ✅ NOVO
+========================= */
+function fillStudentGroups(){
+  const sel = $("#studentFilterGroup");
+  if(!sel) return;
+  sel.innerHTML = `<option value="ALL">Todos</option>`;
+  groups.forEach(g => sel.innerHTML += `<option value="${g}">${g}</option>`);
+}
+
+function renderVideosStudent(){
+  const grid = $("#studentVideosGrid");
+  if(!grid) return;
+
+  const q = ($("#studentSearch")?.value || "").trim().toLowerCase();
+  const g = ($("#studentFilterGroup")?.value || "ALL");
+
+  const list = exercises
+    .filter(e => (g==="ALL" || e.group===g) && e.name.toLowerCase().includes(q))
+    .sort((a,b)=> a.name.localeCompare(b.name, "pt-BR"));
+
+  if(!list.length){
+    grid.innerHTML = `<div class="muted">Nenhum exercício encontrado.</div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(e=>{
+    const emb = youtubeToEmbed(e.youtube);
+    return `
+      <div class="card">
+        <div class="card-title">${escapeHtml(e.name)}</div>
+        <div class="muted">${escapeHtml(e.group)}</div>
+        ${emb
+          ? `<div class="video-box"><iframe src="${emb}" allowfullscreen></iframe></div>`
+          : (e.youtube
+              ? `<a class="btn primary" target="_blank" rel="noopener" href="${e.youtube}">Abrir no YouTube</a>`
+              : `<div class="muted">Sem vídeo cadastrado.</div>`
+            )
+        }
+      </div>
+    `;
+  }).join("");
+}
+
+function bindStudentVideos(){
+  const s = $("#studentSearch");
+  const f = $("#studentFilterGroup");
+  if(s) s.oninput = renderVideosStudent;
+  if(f) f.onchange = renderVideosStudent;
+}
+
+/* =========================
    BACKUP (textarea)
 ========================= */
 function exportBackup(){
@@ -570,12 +636,14 @@ function importBackupFromTextarea(){
 
     // atualiza UI
     fillGroups();
+    fillStudentGroups();     // ✅
     fillStudentsSelect();
     fillPlanDays();
     renderDashboard();
     renderStudents();
     renderExercises();
     renderPlansAdmin();
+    renderVideosStudent();   // ✅
   }catch{
     setStatus("Backup inválido",false);
   }
@@ -589,12 +657,14 @@ function bindMenu(){
     btn.onclick=()=>{
       showView(btn.dataset.view);
       const auth=getAuth();
+
       if(auth?.role==="admin"){
         if(btn.dataset.view==="dashboard") renderDashboard();
         if(btn.dataset.view==="alunos") renderStudents();
         if(btn.dataset.view==="exercicios") renderExercises();
         if(btn.dataset.view==="treinos") renderPlansAdmin();
       }else{
+        if(btn.dataset.view==="videos") renderVideosStudent();     // ✅
         if(btn.dataset.view==="meutreino") renderPlansStudent();
       }
     };
@@ -609,12 +679,14 @@ async function init(){
   await loadDefaultsIfEmpty();
 
   fillGroups();
+  fillStudentGroups();      // ✅
   fillStudentsSelect();
   fillPlanDays();
 
   bindLoginTabs();
   bindBulk();
   bindMenu();
+  bindStudentVideos();      // ✅
 
   // binds gerais
   $("#btnLoginAdmin").onclick = loginAdmin;
@@ -650,9 +722,6 @@ async function init(){
     if(e.ctrlKey && e.key==="Enter") importBackupFromTextarea();
   });
 
-  // cria um botão “Importar” via atalho/status (sem mexer no HTML)
-  // você importa dando Ctrl+Enter dentro do textarea.
-
   // AUTH
   const auth = getAuth();
   if(!auth){
@@ -680,14 +749,12 @@ async function init(){
     $("#roleSub").textContent="Aluno";
     const st = students.find(s=>s.id===auth.studentId);
     $("#welcomeLine").textContent = st ? `Olá, ${st.name}.` : "Olá!";
-    showView("meutreino");
-    renderPlansStudent();
+
+    // ✅ AGORA O ALUNO ENTRA DIRETO EM VÍDEOS
+    showView("videos");
+    renderVideosStudent();
   }
 }
 
 init();
-
-
-
-
 
