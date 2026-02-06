@@ -68,19 +68,17 @@
 
     <!-- MENU ADM -->
     <nav id="menuAdmin" class="menu">
-      <button class="menu-item active" type="button" data-view="dashboard">Dashboard</button>
-      <button class="menu-item" type="button" data-view="alunos">Alunos</button>
-      <button class="menu-item" type="button" data-view="exercicios">Exercícios</button>
-      <button class="menu-item" type="button" data-view="treinos">Treinos</button>
-
-      <!-- Backup oculto até o app.js ter export/import pronto -->
-      <!-- <button class="menu-item" type="button" data-view="backup">Backup</button> -->
+      <button class="menu-item active" data-view="dashboard" type="button">Dashboard</button>
+      <button class="menu-item" data-view="alunos" type="button">Alunos</button>
+      <button class="menu-item" data-view="exercicios" type="button">Exercícios</button>
+      <button class="menu-item" data-view="treinos" type="button">Treinos</button>
+      <button class="menu-item" data-view="backup" type="button">Backup</button>
     </nav>
 
     <!-- MENU ALUNO -->
     <nav id="menuAluno" class="menu hidden">
-      <button class="menu-item active" type="button" data-view="videos">Vídeos</button>
-      <button class="menu-item" type="button" data-view="meutreino">Meu Treino</button>
+      <button class="menu-item active" data-view="videos" type="button">Vídeos</button>
+      <button class="menu-item" data-view="meutreino" type="button">Meu Treino</button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -161,7 +159,7 @@
         <div class="row wrap gap">
           <select id="exGroup"></select>
           <input id="exName" placeholder="Nome do exercício">
-          <input id="exYoutube" placeholder="Link YouTube (watch ou youtu.be)">
+          <input id="exYoutube" placeholder="Link YouTube">
           <button id="btnAddExercise" class="btn primary" type="button">Adicionar</button>
         </div>
 
@@ -208,6 +206,7 @@
           <select id="planStudent"></select>
 
           <select id="planDay"></select>
+          <button id="btnAddModel" class="btn" type="button">+ Modelo</button>
 
           <select id="planGroup"></select>
           <select id="planExercise"></select>
@@ -247,7 +246,7 @@
           <select id="studentFilterGroup"></select>
         </div>
 
-        <div id="studentVideosGrid" show="carrossel" class="mt"></div>
+        <div id="studentVideosGrid" class="mt"></div>
       </div>
 
       <!-- MODAL PLAYER -->
@@ -263,7 +262,7 @@
       </div>
     </section>
 
-    <!-- ===== BACKUP (oculto) ===== -->
+    <!-- ===== BACKUP ===== -->
     <section id="view-backup" class="view hidden">
       <div class="card">
         <h3>Backup</h3>
@@ -284,9 +283,10 @@
   </main>
 </section>
 
-<!-- ================= APP ================= -->
+<!-- ✅ IMPORTANTE: app.js PRECISA ser module (Firebase ES Modules) -->
 <script type="module" src="app.js"></script>
 
 </body>
 </html>
+
 
