@@ -3,8 +3,9 @@
    - Auth + Firestore
    - Admin: alunos, exercícios, treinos
    - Aluno: carrossel Netflix + setas + modal vídeo
+
    IMPORTANTE:
-   - No index: <script type="module" src="app.js"></script>
+   No index: <script type="module" src="app.js"></script>
 ========================================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
@@ -73,8 +74,8 @@ const DEFAULT_MODELS = ["A","B","C","D"];
 let groups = [...DEFAULT_GROUPS];
 let models = [...DEFAULT_MODELS];
 let exercises = []; // {id, group, name, youtube}
-let currentUser = null; // firebase user
-let currentRole = null; // "admin" | "student"
+let currentUser = null;
+let currentRole = null;
 
 /* =========================
    HELPERS
@@ -83,8 +84,7 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
 function safeGet(selector){
-  const el = $(selector);
-  return el || null;
+  return $(selector) || null;
 }
 
 function setStatus(msg, ok=true){
@@ -99,6 +99,13 @@ function setLoginMsg(msg){
   if(el) el.textContent = msg || "";
 }
 
+function friendlyErr(e){
+  const code = e?.code || "";
+  if(code === "permission-denied") return "Sem permissão (regras do Firestore).";
+  if(code === "unauthenticated") return "Você precisa estar logado.";
+  return "Falha ao atualizar.";
+}
+
 function normalizeEmail(userLike){
   const u = (userLike || "").trim().toLowerCase();
   if(!u) return "";
@@ -107,28 +114,32 @@ function normalizeEmail(userLike){
 }
 
 /* =========================================================
-   YOUTUBE (sem shorts)
-   Aceita:
-   - https://www.youtube.com/watch?v=ID
-   - https://youtu.be/ID
+   YOUTUBE -> EMBED (ACEITA shorts / watch / youtu.be / embed)
 ========================================================= */
 function youtubeToEmbed(url){
   if(!url) return "";
   let u = String(url).trim().replace(/\s+/g, "");
 
-  // Se já for embed:
   if(u.includes("youtube.com/embed/")) return u;
 
-  // youtu.be/ID
+  if(u.includes("youtube.com/shorts/")){
+    const id = u.split("youtube.com/shorts/")[1].split("?")[0].split("&")[0];
+    return id ? `https://www.youtube.com/embed/${id}` : "";
+  }
+
   if(u.includes("youtu.be/")){
     const id = u.split("youtu.be/")[1].split("?")[0].split("&")[0];
     return id ? `https://www.youtube.com/embed/${id}` : "";
   }
 
-  // watch?v=ID
   if(u.includes("watch?v=")){
     const id = u.split("watch?v=")[1].split("&")[0];
     return id ? `https://www.youtube.com/embed/${id}` : "";
+  }
+
+  // se colarem só o ID
+  if(u.length >= 8 && u.length <= 20 && !u.includes("/") && !u.includes(".")){
+    return `https://www.youtube.com/embed/${u}`;
   }
 
   return "";
@@ -304,14 +315,13 @@ async function getMyRole(uid){
 }
 
 /* =========================
-   EXERCISES (SEM orderBy)
-   -> evita índice e evita “sumiu”
+   EXERCISES (SEM orderBy -> não exige índice)
 ========================= */
 function listenExercises(){
   return onSnapshot(exercisesCol, (snap)=>{
     exercises = snap.docs.map(d => ({ id:d.id, ...(d.data()||{}) }));
 
-    // ordena no JS
+    // ordena no JS (mais estável)
     exercises.sort((a,b)=>{
       const g = (a.group||"").localeCompare(b.group||"");
       if(g!==0) return g;
@@ -332,10 +342,8 @@ async function addExercise(){
   const y = (safeGet("#exYoutube")?.value || "").trim();
 
   if(!n) return setStatus("Digite o nome do exercício", false);
-
-  // Se tiver url, valida
   if(y && !youtubeToEmbed(y)){
-    setStatus("Cole um link válido do YouTube (watch ou youtu.be)", false);
+    setStatus("Cole um link válido do YouTube (watch/youtu.be/shorts)", false);
     return;
   }
 
@@ -346,12 +354,13 @@ async function addExercise(){
       youtube: y || "",
       createdAt: serverTimestamp()
     });
+
     if(safeGet("#exName")) safeGet("#exName").value="";
     if(safeGet("#exYoutube")) safeGet("#exYoutube").value="";
     setStatus("Exercício adicionado", true);
   }catch(e){
     console.error(e);
-    setStatus("Erro ao adicionar exercício", false);
+    setStatus(friendlyErr(e), false);
   }
 }
 
@@ -361,7 +370,8 @@ async function updateExercise(id, patch){
     setStatus("Atualizado", true);
   }catch(e){
     console.error(e);
-    setStatus("Erro ao atualizar", false);
+    setStatus(friendlyErr(e), false);
+    alert(`${friendlyErr(e)}\n\nMotivo: ${e?.code || "erro"}`);
   }
 }
 
@@ -372,7 +382,7 @@ async function deleteExercise(id){
     setStatus("Excluído", true);
   }catch(e){
     console.error(e);
-    setStatus("Erro ao excluir", false);
+    setStatus(friendlyErr(e), false);
   }
 }
 
@@ -416,7 +426,6 @@ function bindBulk(){
 
 /* =========================
    ADMIN: TABELA EXERCÍCIOS
-   (Editar / Excluir / salvar URL)
 ========================= */
 function renderExercisesAdmin(){
   const tb = safeGet("#exercisesTable tbody");
@@ -470,10 +479,10 @@ function renderExercisesAdmin(){
       if(!newName) return;
 
       const newGroup = (prompt("Grupo:", ex.group||"")||"").trim() || ex.group;
-      const newUrl = (prompt("URL YouTube (watch/youtu.be) ou vazio:", ex.youtube||"")||"").trim();
+      const newUrl = (prompt("URL YouTube (watch/youtu.be/shorts) ou vazio:", ex.youtube||"")||"").trim();
 
       if(newUrl && !youtubeToEmbed(newUrl)){
-        alert("Link inválido. Use watch?v= ou youtu.be");
+        alert("Link inválido. Use watch?v= ou youtu.be ou shorts.");
         return;
       }
       updateExercise(id, { name:newName, group:newGroup, youtube:newUrl });
@@ -487,7 +496,7 @@ function renderExercisesAdmin(){
       const url = (input?.value || "").trim();
 
       if(url && !youtubeToEmbed(url)){
-        alert("Link inválido. Use watch?v= ou youtu.be");
+        alert("Link inválido. Use watch?v= ou youtu.be ou shorts.");
         return;
       }
       updateExercise(id, { youtube: url });
@@ -542,15 +551,15 @@ async function createStudent(){
     if(safeGet("#studentUser")) safeGet("#studentUser").value="";
     if(safeGet("#studentPass")) safeGet("#studentPass").value="";
 
-    // IMPORTANTÍSSIMO: não derrubar o admin
     await signOut(secondaryAuth);
-
     setStatus("Aluno criado ✅", true);
+
     await renderStudentsAsync();
     await loadStudentsForSelect();
   }catch(e){
     console.error(e);
-    setStatus("Erro: Auth Email/Senha não ativo ou usuário já existe", false);
+    setStatus(friendlyErr(e), false);
+    alert(`${friendlyErr(e)}\n\nMotivo: ${e?.code || "erro"}`);
   }
 }
 
@@ -598,7 +607,7 @@ async function renderStudentsAsync(){
         await loadStudentsForSelect();
       }catch(e){
         console.error(e);
-        setStatus("Erro ao excluir", false);
+        setStatus(friendlyErr(e), false);
       }
     };
   });
@@ -609,23 +618,27 @@ async function renderStudentsAsync(){
       const months = Number(prompt("Renovar por quantos meses? (3/6/12)", "3") || "0");
       if(!months) return;
       try{
-        await updateDoc(userRef(uid), { planMonths: months, expiresAt: addMonthsISO(months) });
+        await updateDoc(userRef(uid), {
+          planMonths: months,
+          expiresAt: addMonthsISO(months)
+        });
         setStatus("Plano renovado", true);
         await renderStudentsAsync();
       }catch(e){
         console.error(e);
-        setStatus("Erro ao renovar", false);
+        setStatus(friendlyErr(e), false);
       }
     };
   });
 }
 
 /* =========================
-   PLANS / TREINOS (ADM)
+   TREINOS (PLANS)
 ========================= */
 async function loadStudentsForSelect(){
   const sel = safeGet("#planStudent");
   if(!sel) return;
+
   const students = await loadAllStudents();
   sel.innerHTML="";
   students.forEach(s=>{
@@ -647,15 +660,13 @@ function fillPlanExercises(){
   const g = safeGet("#planGroup")?.value;
   const sel = safeGet("#planExercise");
   if(!sel) return;
-  sel.innerHTML="";
-  exercises.filter(e=>e.group===g).forEach(e=>{
-    sel.innerHTML += `<option value="${e.id}">${e.name}</option>`;
-  });
 
-  // se não tiver nada, evita ficar “vazio sem feedback”
-  if(!sel.innerHTML){
-    sel.innerHTML = `<option value="">(Sem exercícios neste grupo)</option>`;
-  }
+  sel.innerHTML="";
+  exercises
+    .filter(e=>e.group===g)
+    .forEach(e=>{
+      sel.innerHTML += `<option value="${e.id}">${e.name}</option>`;
+    });
 }
 
 async function addToPlan(){
@@ -670,7 +681,7 @@ async function addToPlan(){
   if(!days[day]) days[day] = [];
 
   days[day].push({
-    id: crypto.randomUUID?.() || ("it_"+Date.now()),
+    id: (crypto.randomUUID?.() || ("it_"+Date.now())),
     exerciseId: exId,
     group: ex.group,
     name: ex.name,
@@ -749,7 +760,7 @@ async function clearAllPlans(){
   await renderPlansAdmin();
 }
 /* =========================
-   ALUNO: MODAL + CARROSSEL NETFLIX COM SETAS
+   ALUNO: MODAL + CARROSSEL (com SETAS)
 ========================= */
 function bindModal(){
   const modal = safeGet("#videoModal");
@@ -771,8 +782,8 @@ function openVideoModal(title, url){
 
   const iframe = safeGet("#modalIframe");
   const t = safeGet("#modalTitle");
-
   const emb = youtubeToEmbed(url);
+
   if(t) t.textContent = title || "Vídeo";
   if(iframe) iframe.src = emb || "";
 
@@ -782,27 +793,23 @@ function openVideoModal(title, url){
 function renderStudentWelcome(name){
   const title = safeGet("#welcomeStudentTitle");
   const text = safeGet("#welcomeStudentText");
-
   if(title) title.textContent = `Bem-vindo(a), ${name || "Aluno(a)"}!`;
-
-  if(text){
-    text.textContent =
-      `Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo. Use a busca para achar exercícios pelo nome.`;
-  }
+  if(text) text.textContent =
+    `Explore os grupos abaixo. Use a busca para achar exercícios pelo nome.`;
 }
 
-/* =========================
-   CRIAR LINHA NETFLIX COM SETAS
-========================= */
-function buildRow(groupTitle, itemsHTML, rowId){
+/* ---------- CARROSSEL + SETAS ---------- */
+function buildRow(rowTitle, itemsHTML, railId){
+  // usa as classes do seu CSS: row-netflix / row-rail / vcard
+  // e adiciona setas (usa .carousel-btn que você já tem no CSS)
   return `
-    <div class="video-group">
-      <div class="video-group-title">${groupTitle}</div>
+    <div class="row-netflix">
+      <div class="row-title">${rowTitle}</div>
 
-      <button class="carousel-btn left" type="button" data-left="${rowId}">‹</button>
-      <button class="carousel-btn right" type="button" data-right="${rowId}">›</button>
+      <button class="carousel-btn left" type="button" data-scroll-left="${railId}">‹</button>
+      <button class="carousel-btn right" type="button" data-scroll-right="${railId}">›</button>
 
-      <div class="carousel-track" id="${rowId}">
+      <div class="row-rail" id="${railId}">
         ${itemsHTML}
       </div>
     </div>
@@ -810,23 +817,45 @@ function buildRow(groupTitle, itemsHTML, rowId){
 }
 
 function videoCardHTML(ex){
-  const playable = !!(ex.youtube && youtubeToEmbed(ex.youtube));
-  const badge = playable ? "PLAY" : "SEM VÍDEO";
+  const playable = !!youtubeToEmbed(ex.youtube || "");
+  const badge = playable
+    ? `<span class="badge-ok">PLAY</span>`
+    : `<span class="badge-miss">SEM VÍDEO</span>`;
 
   return `
-    <div class="video-card" data-play="${ex.id}">
-      <div class="video-thumb">${badge}</div>
-      <div class="video-info">
-        <div class="video-name">${ex.name || ""}</div>
-        <div class="video-sub">${ex.group || ""}</div>
+    <button class="vcard" type="button" data-play="${ex.id}">
+      <div class="vcard-top">
+        <div class="vcard-name">${ex.name || ""}</div>
+        <div class="vcard-group">${ex.group || ""}</div>
       </div>
-    </div>
+      <div class="vcard-badge">${badge}</div>
+    </button>
   `;
 }
 
-/* =========================
-   RENDER VÍDEOS DO ALUNO
-========================= */
+function bindCarouselArrows(container){
+  // scroll suave por “página”
+  container.querySelectorAll("[data-scroll-left]").forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.getAttribute("data-scroll-left");
+      const rail = document.getElementById(id);
+      if(!rail) return;
+      const step = Math.max(260, rail.clientWidth * 0.8);
+      rail.scrollBy({ left: -step, behavior: "smooth" });
+    };
+  });
+
+  container.querySelectorAll("[data-scroll-right]").forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.getAttribute("data-scroll-right");
+      const rail = document.getElementById(id);
+      if(!rail) return;
+      const step = Math.max(260, rail.clientWidth * 0.8);
+      rail.scrollBy({ left: step, behavior: "smooth" });
+    };
+  });
+}
+
 function renderStudentVideos(){
   const grid = safeGet("#studentVideosGrid");
   if(!grid) return;
@@ -835,8 +864,8 @@ function renderStudentVideos(){
   const gFilter = safeGet("#studentFilterGroup")?.value || "ALL";
 
   const list = exercises.filter(ex=>{
-    const okGroup = (gFilter==="ALL") || (ex.group===gFilter);
-    const okName = (ex.name||"").toLowerCase().includes(q);
+    const okGroup = (gFilter === "ALL") || (ex.group === gFilter);
+    const okName  = (ex.name || "").toLowerCase().includes(q);
     return okGroup && okName;
   });
 
@@ -844,47 +873,44 @@ function renderStudentVideos(){
   const byGroup = {};
   list.forEach(ex=>{
     const g = ex.group || "Outros";
-    if(!byGroup[g]) byGroup[g] = [];
+    byGroup[g] = byGroup[g] || [];
     byGroup[g].push(ex);
   });
 
+  // ✅ “Comece por aqui”:
+  // - prioriza os que têm vídeo válido
+  // - se NÃO tiver nenhum vídeo, ainda mostra 12 primeiros (pra não “sumir”)
+  const withVideo = list.filter(ex => !!youtubeToEmbed(ex.youtube || ""));
+  const startPick = (withVideo.length ? withVideo : list).slice(0, 12);
+  const startCards = startPick.map(videoCardHTML).join("");
+
   let html = "";
-
-  // "Comece por aqui" primeiro (mesmo se grupo existir ou não)
-  const startList = list
-    .filter(ex => !!youtubeToEmbed(ex.youtube || ""))
-    .slice(0, 12);
-
-  if(startList.length){
-    html += buildRow(
-      "Comece por aqui",
-      startList.map(videoCardHTML).join(""),
-      "row-start"
-    );
+  if(startCards){
+    html += buildRow("Comece por aqui", startCards, "rail_start");
   }
 
-  // depois cada grupo
+  // carrosséis por grupo (mesmo sem vídeo)
   groups.forEach((g, idx)=>{
-    const arr = byGroup[g] || [];
-    if(!arr.length) return;
-
-    html += buildRow(
-      g,
-      arr.map(videoCardHTML).join(""),
-      `row-${idx}`
-    );
+    const arr = (byGroup[g] || []).map(videoCardHTML).join("");
+    if(arr){
+      html += buildRow(g, arr, `rail_${idx}`);
+    }
   });
 
   if(!html){
-    html = `<div class="muted">Nenhum exercício encontrado.</div>`;
+    grid.innerHTML = `<div class="muted">Nenhum exercício encontrado.</div>`;
+    return;
   }
 
   grid.innerHTML = html;
 
-  // clique para abrir vídeo
-  grid.querySelectorAll("[data-play]").forEach(card=>{
-    card.onclick = ()=>{
-      const id = card.dataset.play;
+  // setas
+  bindCarouselArrows(grid);
+
+  // clique nos cards
+  grid.querySelectorAll("[data-play]").forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.getAttribute("data-play");
       const ex = exercises.find(x=>x.id===id);
       if(!ex) return;
 
@@ -893,33 +919,13 @@ function renderStudentVideos(){
         alert("Este exercício ainda não tem URL do YouTube.");
         return;
       }
-
       openVideoModal(ex.name, ex.youtube);
-    };
-  });
-
-  // setas do carrossel
-  grid.querySelectorAll("[data-left]").forEach(btn=>{
-    btn.onclick = ()=>{
-      const id = btn.dataset.left;
-      const track = document.getElementById(id);
-      if(!track) return;
-      track.scrollLeft -= 500;
-    };
-  });
-
-  grid.querySelectorAll("[data-right]").forEach(btn=>{
-    btn.onclick = ()=>{
-      const id = btn.dataset.right;
-      const track = document.getElementById(id);
-      if(!track) return;
-      track.scrollLeft += 500;
     };
   });
 }
 
 /* =========================
-   MEU TREINO (ALUNO)
+   ALUNO: MEU TREINO
 ========================= */
 async function renderPlansStudent(){
   const box = safeGet("#studentPlanPreview");
@@ -934,7 +940,6 @@ async function renderPlansStudent(){
 
   const days = await getPlanDays(uid);
   const keys = Object.keys(days||{});
-
   if(!keys.length){
     box.innerHTML = `<div class="muted">Seu treino ainda não foi criado.</div>`;
     return;
@@ -982,7 +987,7 @@ function bindMenu(){
 }
 
 /* =========================
-   INIT FINAL
+   INIT (final)
 ========================= */
 async function init(){
   bindLoginTabs();
@@ -1025,10 +1030,7 @@ async function init(){
       safeGet("#app")?.classList.add("hidden");
       currentRole = null;
 
-      if(unsubExercises){
-        unsubExercises();
-        unsubExercises = null;
-      }
+      if(unsubExercises){ unsubExercises(); unsubExercises=null; }
       return;
     }
 
@@ -1061,7 +1063,6 @@ async function init(){
 
       const snap = await getDoc(userRef(u.uid));
       const me = snap.exists() ? (snap.data()||{}) : {};
-
       safeGet("#welcomeLine") && (safeGet("#welcomeLine").textContent = me.name ? `Olá, ${me.name}.` : "Olá!");
       renderStudentWelcome(me.name);
 
