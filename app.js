@@ -1,8 +1,12 @@
 /* =========================================================
-   Firebase (Web SDK via ES Modules)
-   - Requer: <script type="module" src="app.js"></script>
+   APP.JS - Plataforma Katielle Amaral (Firebase)
+   - Auth + Firestore
+   - Admin: alunos, exercícios, treinos
+   - Aluno: carrossel netflix + modal vídeo
 ========================================================= */
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+
 import {
   getAuth,
   onAuthStateChanged,
@@ -51,18 +55,28 @@ const secondaryAuth = getAuth(secondaryApp);
 /* =========================
    DEFAULT CONFIG
 ========================= */
-const DEFAULT_GROUPS = ["Peitoral","Costas","Pernas","Ombros","Braços","Abdômen","Mobilidade","Alongamento"];
-const DEFAULT_MODELS = ["A","B","C","D"];
+const DEFAULT_GROUPS = [
+  "Comece por aqui",
+  "Alongamento",
+  "Mobilidade",
+  "Peitoral",
+  "Costas",
+  "Pernas",
+  "Ombros",
+  "Braços",
+  "Abdômen"
+];
+
+const DEFAULT_MODELS = ["A", "B", "C", "D"];
 
 /* =========================
    STATE
 ========================= */
 let groups = [...DEFAULT_GROUPS];
 let models = [...DEFAULT_MODELS];
-let exercises = []; // {id, group, name, youtube}
+let exercises = [];
 let currentUser = null;
-let currentRole = null; // "admin" | "student"
-let unsubExercises = null;
+let currentRole = null;
 
 /* =========================
    HELPERS
@@ -70,61 +84,71 @@ let unsubExercises = null;
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
-function setStatus(msg, ok=true){
+function setStatus(msg, ok = true) {
   const pill = $("#statusPill");
-  if(!pill) return;
+  if (!pill) return;
   pill.textContent = msg;
   pill.style.color = ok ? "#18c37d" : "#ffb9bd";
 }
-function setLoginMsg(msg){
+
+function setLoginMsg(msg) {
   const el = $("#loginMsg");
-  if(el) el.textContent = msg;
+  if (el) el.textContent = msg;
 }
 
-function normalizeEmail(userLike){
+function normalizeEmail(userLike) {
   const u = (userLike || "").trim().toLowerCase();
-  if(!u) return "";
-  if(u.includes("@")) return u;
+  if (!u) return "";
+  if (u.includes("@")) return u;
   return `${u}@katielle.app`;
 }
 
-// ✅ Somente links normais e youtu.be (sem shorts)
-function youtubeToEmbed(url){
-  if(!url) return "";
-  const u = url.trim();
+/* =========================================================
+   YOUTUBE NORMALIZER (CORRIGIDO)
+   - Aceita watch?v=
+   - Aceita youtu.be/
+   - Aceita embed/
+   - Aceita shorts/
+========================================================= */
+function youtubeToEmbed(url) {
+  if (!url) return "";
 
-  // youtu.be/ID
-  if(u.includes("youtu.be/")){
-    const id = u.split("youtu.be/")[1].split("?")[0].split("&")[0];
-    return id ? `https://www.youtube.com/embed/${id}` : "";
+  let u = url.trim();
+
+  // remove espaços e lixo
+  u = u.replace(/\s+/g, "");
+
+  // embed já pronto
+  if (u.includes("youtube.com/embed/")) return u;
+
+  // shorts
+  if (u.includes("youtube.com/shorts/")) {
+    const id = u.split("youtube.com/shorts/")[1].split("?")[0];
+    return `https://www.youtube.com/embed/${id}`;
   }
 
-  // youtube.com/watch?v=ID
-  if(u.includes("watch?v=")){
+  // youtu.be
+  if (u.includes("youtu.be/")) {
+    const id = u.split("youtu.be/")[1].split("?")[0];
+    return `https://www.youtube.com/embed/${id}`;
+  }
+
+  // watch?v=
+  if (u.includes("watch?v=")) {
     const id = u.split("watch?v=")[1].split("&")[0];
-    return id ? `https://www.youtube.com/embed/${id}` : "";
+    return `https://www.youtube.com/embed/${id}`;
+  }
+
+  // se usuário colou só o ID
+  if (u.length >= 8 && u.length <= 20 && !u.includes("/") && !u.includes(".")) {
+    return `https://www.youtube.com/embed/${u}`;
   }
 
   return "";
 }
 
-function escapeHtml(str=""){
-  return String(str)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;");
-}
-
-function niceErr(e){
-  const code = e?.code || "";
-  const msg  = e?.message || "";
-  if(code) return `${code}`;
-  return msg || "erro";
-}
-
 /* =========================
-   FIRESTORE PATHS (MINÚSCULO!)
+   FIRESTORE PATHS
 ========================= */
 const configRef = doc(db, "app", "config");
 const userRef = (uid) => doc(db, "users", uid);
@@ -134,115 +158,121 @@ const plansRef = (uid) => doc(db, "plans", uid);
 /* =========================
    FIRESTORE: CONFIG
 ========================= */
-async function ensureConfig(){
+async function ensureConfig() {
   const snap = await getDoc(configRef);
-  if(!snap.exists()){
+
+  if (!snap.exists()) {
     await setDoc(configRef, {
       groups: DEFAULT_GROUPS,
       models: DEFAULT_MODELS,
       createdAt: serverTimestamp()
     });
+
     groups = [...DEFAULT_GROUPS];
     models = [...DEFAULT_MODELS];
     return;
   }
+
   const data = snap.data() || {};
   groups = Array.isArray(data.groups) && data.groups.length ? data.groups : [...DEFAULT_GROUPS];
   models = Array.isArray(data.models) && data.models.length ? data.models : [...DEFAULT_MODELS];
 }
 
+async function saveConfig() {
+  await setDoc(configRef, { groups, models }, { merge: true });
+}
+
 /* =========================
    UI NAV
 ========================= */
-function showView(v){
-  $$(".view").forEach(x=>x.classList.add("hidden"));
-  $("#view-"+v)?.classList.remove("hidden");
+function showView(v) {
+  $$(".view").forEach(x => x.classList.add("hidden"));
+  $("#view-" + v)?.classList.remove("hidden");
 
-  $$(".menu-item").forEach(b=>b.classList.remove("active"));
+  $$(".menu-item").forEach(b => b.classList.remove("active"));
   document.querySelector(`.menu-item[data-view="${v}"]`)?.classList.add("active");
 
-  const titles={
-    dashboard:"Dashboard",
-    alunos:"Alunos",
-    exercicios:"Exercícios",
-    treinos:"Treinos",
-    backup:"Backup",
-    videos:"Vídeos",
-    meutreino:"Meu Treino"
+  const titles = {
+    dashboard: "Dashboard",
+    alunos: "Alunos",
+    exercicios: "Exercícios",
+    treinos: "Treinos",
+    backup: "Backup",
+    videos: "Vídeos",
+    meutreino: "Meu Treino"
   };
+
   $("#viewTitle").textContent = titles[v] || "Painel";
 }
 
 /* =========================
    SELECTS (groups/models)
 ========================= */
-function fillGroups(){
-  const exGroup=$("#exGroup");
-  const filterGroup=$("#filterGroup");
-  const planGroup=$("#planGroup");
-  const studentFilter=$("#studentFilterGroup");
+function fillGroups() {
+  const exGroup = $("#exGroup");
+  const filterGroup = $("#filterGroup");
+  const planGroup = $("#planGroup");
+  const studentFilter = $("#studentFilterGroup");
 
-  if(exGroup){
-    exGroup.innerHTML="";
-    groups.forEach(g=> exGroup.innerHTML += `<option value="${g}">${g}</option>`);
+  if (exGroup) {
+    exGroup.innerHTML = "";
+    groups.forEach(g => exGroup.innerHTML += `<option value="${g}">${g}</option>`);
   }
-  if(planGroup){
-    planGroup.innerHTML="";
-    groups.forEach(g=> planGroup.innerHTML += `<option value="${g}">${g}</option>`);
+
+  if (planGroup) {
+    planGroup.innerHTML = "";
+    groups.forEach(g => planGroup.innerHTML += `<option value="${g}">${g}</option>`);
   }
-  if(filterGroup){
+
+  if (filterGroup) {
     filterGroup.innerHTML = `<option value="ALL">Todos</option>`;
-    groups.forEach(g=> filterGroup.innerHTML += `<option value="${g}">${g}</option>`);
+    groups.forEach(g => filterGroup.innerHTML += `<option value="${g}">${g}</option>`);
   }
-  if(studentFilter){
+
+  if (studentFilter) {
     studentFilter.innerHTML = `<option value="ALL">Todos</option>`;
-    groups.forEach(g=> studentFilter.innerHTML += `<option value="${g}">${g}</option>`);
+    groups.forEach(g => studentFilter.innerHTML += `<option value="${g}">${g}</option>`);
   }
 }
 
-function fillPlanDays(){
-  const sel=$("#planDay");
-  if(!sel) return;
-  const days=["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
-  sel.innerHTML="";
-  days.forEach(d=>{
-    models.forEach(m=>{
+function fillPlanDays() {
+  const sel = $("#planDay");
+  if (!sel) return;
+
+  const days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+  sel.innerHTML = "";
+
+  days.forEach(d => {
+    models.forEach(m => {
       sel.innerHTML += `<option value="${d} - ${m}">${d} - ${m}</option>`;
     });
   });
-}
 
+  models.forEach(m => sel.innerHTML += `<option value="${m}">${m}</option>`);
+}
 /* =========================
-   DASHBOARD
+   DASHBOARD (contagens)
 ========================= */
-function renderDashboardCounts({studentsCount=0, exercisesCount=0, blocksCount=0}={}){
-  $("#dashStudents").textContent = studentsCount;
-  $("#dashExercises").textContent = exercisesCount;
-  $("#dashPlans").textContent = blocksCount;
-}
-
-async function renderDashboardAsync(){
-  if(currentRole !== "admin") return;
-  const students = await loadAllStudents();
-  renderDashboardCounts({
-    studentsCount: students.length,
-    exercisesCount: exercises.length,
-    blocksCount: 0
-  });
+function renderDashboardCounts({ studentsCount = 0, exercisesCount = 0, blocksCount = 0 } = {}) {
+  const a = $("#dashStudents"), e = $("#dashExercises"), p = $("#dashPlans");
+  if (a) a.textContent = studentsCount;
+  if (e) e.textContent = exercisesCount;
+  if (p) p.textContent = blocksCount;
 }
 
 /* =========================
    LOGIN TABS
 ========================= */
-function bindLoginTabs(){
-  $("#tabAdmin").onclick=()=>{
+function bindLoginTabs() {
+  $("#tabAdmin").onclick = () => {
     $("#tabAdmin").classList.add("active");
     $("#tabAluno").classList.remove("active");
     $("#formAdmin").classList.remove("hidden");
     $("#formAluno").classList.add("hidden");
     setLoginMsg("");
   };
-  $("#tabAluno").onclick=()=>{
+
+  $("#tabAluno").onclick = () => {
     $("#tabAluno").classList.add("active");
     $("#tabAdmin").classList.remove("active");
     $("#formAluno").classList.remove("hidden");
@@ -254,253 +284,224 @@ function bindLoginTabs(){
 /* =========================
    AUTH: LOGIN / LOGOUT
 ========================= */
-async function loginAdmin(){
+async function loginAdmin() {
   const email = normalizeEmail($("#loginUser").value);
-  const pass  = ($("#loginPass").value || "").trim();
-  if(!email || !pass) return setLoginMsg("Preencha usuário e senha");
-  try{
+  const pass = ($("#loginPass").value || "").trim();
+  if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
+
+  try {
     await signInWithEmailAndPassword(auth, email, pass);
-  }catch(e){
+  } catch (e) {
     setLoginMsg("Usuário ou senha inválidos");
   }
 }
 
-async function loginAluno(){
+async function loginAluno() {
   const email = normalizeEmail($("#studentUserLogin").value);
-  const pass  = ($("#studentPassLogin").value || "").trim();
-  if(!email || !pass) return setLoginMsg("Preencha usuário e senha");
-  try{
+  const pass = ($("#studentPassLogin").value || "").trim();
+  if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
+
+  try {
     await signInWithEmailAndPassword(auth, email, pass);
-  }catch(e){
+  } catch (e) {
     setLoginMsg("Usuário ou senha inválidos");
   }
 }
 
-async function logout(){
+async function logout() {
   await signOut(auth);
 }
 
 /* =========================
    USERS / ROLES
 ========================= */
-async function getMyRole(uid){
+async function getMyRole(uid) {
   const snap = await getDoc(userRef(uid));
-  if(!snap.exists()) return null;
+  if (!snap.exists()) return null;
   const data = snap.data() || {};
   return data.role || null;
 }
 
-async function ensureUserDocOnFirstLogin(u){
+async function ensureUserDocOnFirstLogin(u) {
   const ref = userRef(u.uid);
   const snap = await getDoc(ref);
-  if(snap.exists()) return;
+  if (snap.exists()) return;
+
   await setDoc(ref, {
     role: "student",
     name: u.email || "Aluno",
     createdAt: serverTimestamp()
-  }, { merge:true });
+  });
 }
 
 /* =========================
    EXERCISES (Firestore)
 ========================= */
-function listenExercises(){
-  // ✅ orderBy único = NÃO exige índice composto
-  const qy = query(exercisesCol, orderBy("createdAt", "desc"));
-  return onSnapshot(qy, (snap)=>{
-    exercises = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if(currentRole==="admin") renderExercisesAdmin();
-    if(currentRole==="student") renderStudentVideosCarousel();
+function listenExercises() {
+  const qy = query(exercisesCol, orderBy("group"), orderBy("name"));
+  return onSnapshot(qy, (snap) => {
+    exercises = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+
+    if (currentRole === "admin") renderExercisesAdmin();
+    if (currentRole === "student") renderStudentVideos();
+
     renderDashboardAsync();
-  }, (err)=>{
-    setStatus("Erro ao ler exercícios: " + niceErr(err), false);
   });
 }
 
-async function addExercise(){
+async function addExercise() {
   const g = $("#exGroup").value;
   const n = ($("#exName").value || "").trim();
   const y = ($("#exYoutube").value || "").trim();
 
-  if(!n) return setStatus("Digite o nome do exercício", false);
+  if (!n) return setStatus("Digite o nome do exercício", false);
 
-  // valida link: pode vazio, mas se tiver precisa virar embed
-  if(y && !youtubeToEmbed(y)){
-    return setStatus("Link inválido (use watch?v= ou youtu.be/)", false);
-  }
+  const emb = youtubeToEmbed(y);
+  const finalUrl = emb ? y : (y ? "" : "");
 
-  try{
+  try {
     await addDoc(exercisesCol, {
       group: g,
       name: n,
-      youtube: y || "",
+      youtube: finalUrl,
       createdAt: serverTimestamp()
     });
-    $("#exName").value="";
-    $("#exYoutube").value="";
+    $("#exName").value = "";
+    $("#exYoutube").value = "";
     setStatus("Exercício adicionado", true);
-  }catch(e){
-    setStatus("Erro ao adicionar: " + niceErr(e), false);
+  } catch {
+    setStatus("Erro ao adicionar", false);
   }
 }
 
-async function addExercisesBulk(lines){
-  const g = $("#exGroup").value;
-  let ok = 0;
-  let fail = 0;
-
-  for(const lineRaw of lines){
-    const line = (lineRaw || "").trim();
-    if(!line) continue;
-
-    // formato: Nome | URL
-    const parts = line.split("|").map(x=>x.trim());
-    const name = parts[0] || "";
-    const url  = parts[1] || "";
-
-    if(!name){ fail++; continue; }
-    if(url && !youtubeToEmbed(url)){ fail++; continue; }
-
-    try{
-      await addDoc(exercisesCol, {
-        group: g,
-        name,
-        youtube: url || "",
-        createdAt: serverTimestamp()
-      });
-      ok++;
-    }catch{
-      fail++;
-    }
-  }
-  setStatus(`Lote: ${ok} ok, ${fail} falhou`, fail===0);
-}
-
-async function updateExercise(id, patch){
-  try{
+async function updateExercise(id, patch) {
+  try {
     await updateDoc(doc(db, "exercises", id), patch);
     setStatus("Exercício atualizado", true);
-  }catch(e){
-    setStatus("Erro ao atualizar: " + niceErr(e), false);
+  } catch {
+    setStatus("Erro ao atualizar", false);
   }
 }
 
-async function deleteExercise(id){
-  if(!confirm("Excluir exercício?")) return;
-  try{
+async function deleteExercise(id) {
+  if (!confirm("Excluir exercício?")) return;
+  try {
     await deleteDoc(doc(db, "exercises", id));
     setStatus("Exercício excluído", true);
-  }catch(e){
-    setStatus("Erro ao excluir: " + niceErr(e), false);
+  } catch {
+    setStatus("Erro ao excluir", false);
   }
 }
 
 /* =========================
-   ADMIN: tabela exercícios
+   ADMIN: TABELA EXERCÍCIOS
+   - Editar / Excluir / Campo URL + Salvar
 ========================= */
-function renderExercisesAdmin(){
+function renderExercisesAdmin() {
   const tb = $("#exercisesTable tbody");
-  if(!tb) return;
+  if (!tb) return;
+
   tb.innerHTML = "";
 
   const f = $("#filterGroup")?.value || "ALL";
   const q = ($("#searchExercise")?.value || "").trim().toLowerCase();
 
-  const filtered = exercises
-    .filter(e =>
-      (f==="ALL" || e.group===f) &&
-      (e.name || "").toLowerCase().includes(q)
-    )
-    .sort((a,b)=> (a.group||"").localeCompare(b.group||"") || (a.name||"").localeCompare(b.name||""));
+  const filtered = exercises.filter(e =>
+    (f === "ALL" || e.group === f) &&
+    ((e.name || "").toLowerCase().includes(q))
+  );
 
-  filtered.forEach(e=>{
-    const has = e.youtube ? "OK" : "—";
+  filtered.forEach(e => {
+    const ok = !!youtubeToEmbed(e.youtube || "");
     tb.innerHTML += `
       <tr>
-        <td>${escapeHtml(e.group || "")}</td>
-        <td>${escapeHtml(e.name || "")}</td>
-        <td>${has}</td>
+        <td>${e.group || ""}</td>
+        <td>${e.name || ""}</td>
+        <td>${ok ? "OK" : "—"}</td>
         <td style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button class="btn" type="button" data-edit="${e.id}">Editar</button>
           <button class="btn danger" type="button" data-del="${e.id}">Excluir</button>
-          <input data-url="${e.id}" placeholder="Cole URL do YouTube"
-            value="${escapeHtml(e.youtube||"")}"
-            style="height:40px; min-width:220px;">
+
+          <input
+            data-url="${e.id}"
+            placeholder="Cole URL do YouTube"
+            value="${String(e.youtube || "").replaceAll('"', "&quot;")}"
+            style="height:40px; min-width:220px;"
+          />
+
           <button class="btn primary" type="button" data-saveurl="${e.id}">Salvar URL</button>
         </td>
       </tr>
     `;
   });
 
-  tb.querySelectorAll("[data-del]").forEach(btn=>{
-    btn.onclick = ()=> deleteExercise(btn.dataset.del);
+  tb.querySelectorAll("[data-del]").forEach(btn => {
+    btn.onclick = () => deleteExercise(btn.dataset.del);
   });
 
-  tb.querySelectorAll("[data-edit]").forEach(btn=>{
-    btn.onclick = ()=>{
+  tb.querySelectorAll("[data-edit]").forEach(btn => {
+    btn.onclick = () => {
       const id = btn.dataset.edit;
-      const ex = exercises.find(x=>x.id===id);
-      if(!ex) return;
+      const ex = exercises.find(x => x.id === id);
+      if (!ex) return;
 
       const newName = (prompt("Nome do exercício:", ex.name || "") || "").trim();
-      if(!newName) return;
+      if (!newName) return;
 
       const newGroup = (prompt("Grupo:", ex.group || "") || "").trim() || ex.group;
-      const newUrl  = (prompt("URL do YouTube (vazio se não tiver):", ex.youtube || "") || "").trim();
+      const newUrl = (prompt("URL do YouTube (opcional):", ex.youtube || "") || "").trim();
 
-      if(newUrl && !youtubeToEmbed(newUrl)){
-        alert("Link inválido. Use watch?v=... ou youtu.be/...");
-        return;
-      }
       updateExercise(id, { name: newName, group: newGroup, youtube: newUrl });
     };
   });
 
-  tb.querySelectorAll("[data-saveurl]").forEach(btn=>{
-    btn.onclick = ()=>{
+  tb.querySelectorAll("[data-saveurl]").forEach(btn => {
+    btn.onclick = () => {
       const id = btn.dataset.saveurl;
       const input = tb.querySelector(`[data-url="${id}"]`);
       const url = (input?.value || "").trim();
 
-      if(url && !youtubeToEmbed(url)){
-        setStatus("Link inválido (use watch?v= ou youtu.be/)", false);
+      // valida
+      if (url && !youtubeToEmbed(url)) {
+        alert("Link inválido. Cole um link do YouTube (watch ou youtu.be).");
         return;
       }
+
       updateExercise(id, { youtube: url });
     };
   });
 }
 
 /* =========================
-   STUDENTS
+   STUDENTS (Firestore)
 ========================= */
-function addMonthsISO(months){
+function addMonthsISO(months) {
   const d = new Date();
   d.setMonth(d.getMonth() + Number(months));
   return d.toISOString();
 }
-function daysLeft(iso){
-  if(!iso) return 999999;
+function daysLeft(iso) {
+  if (!iso) return 999999;
   return Math.ceil((new Date(iso) - new Date()) / 86400000);
 }
-function fmtDate(iso){
-  if(!iso) return "—";
+function fmtDate(iso) {
+  if (!iso) return "—";
   return new Date(iso).toLocaleDateString("pt-BR");
 }
 
-async function createStudent(){
+async function createStudent() {
   const name = ($("#studentName").value || "").trim();
   const username = ($("#studentUser").value || "").trim().toLowerCase();
   const pass = ($("#studentPass").value || "").trim();
   const planMonths = Number($("#studentPlan").value);
 
-  if(!name || !username || pass.length < 4){
+  if (!name || !username || pass.length < 4) {
     return setStatus("Dados inválidos (senha mínimo 4)", false);
   }
 
   const email = normalizeEmail(username);
 
-  try{
+  try {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
     const uid = cred.user.uid;
 
@@ -511,49 +512,48 @@ async function createStudent(){
       planMonths,
       expiresAt: addMonthsISO(planMonths),
       createdAt: serverTimestamp()
-    }, { merge:true });
+    }, { merge: true });
 
-    await setDoc(plansRef(uid), { days: {} }, { merge:true });
+    await setDoc(plansRef(uid), { days: {} }, { merge: true });
 
-    $("#studentName").value="";
-    $("#studentUser").value="";
-    $("#studentPass").value="";
+    $("#studentName").value = "";
+    $("#studentUser").value = "";
+    $("#studentPass").value = "";
     setStatus("Aluno criado (login pelo usuário/senha)", true);
 
     await signOut(secondaryAuth);
 
     await renderStudentsAsync();
     await renderDashboardAsync();
-    await loadStudentsForSelect();
-  }catch(e){
-    setStatus("Erro ao criar aluno: " + niceErr(e), false);
+  } catch (e) {
+    setStatus("Erro: usuário já existe / senha fraca / auth não ativo", false);
   }
 }
 
-async function loadAllStudents(){
+async function loadAllStudents() {
   const snap = await getDocs(collection(db, "users"));
-  const list = snap.docs
-    .map(d => ({ uid:d.id, ...d.data() }))
+  return snap.docs
+    .map(d => ({ uid: d.id, ...(d.data() || {}) }))
     .filter(u => u.role === "student")
-    .sort((a,b)=> (a.name||"").localeCompare(b.name||""));
-  return list;
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-async function renderStudentsAsync(){
+async function renderStudentsAsync() {
   const tb = $("#studentsTable tbody");
-  if(!tb) return;
+  if (!tb) return;
+
   const students = await loadAllStudents();
   tb.innerHTML = "";
 
-  students.forEach(s=>{
+  students.forEach(s => {
     const left = daysLeft(s.expiresAt);
     tb.innerHTML += `
       <tr>
-        <td>${escapeHtml(s.name || "")}</td>
-        <td>${escapeHtml(s.username || "")}</td>
-        <td>${escapeHtml(String(s.planMonths || "—"))}m</td>
-        <td>${escapeHtml(fmtDate(s.expiresAt))} (${left}d)</td>
-        <td>${left>=0 ? "Ativo" : "Vencido"}</td>
+        <td>${s.name || ""}</td>
+        <td>${s.username || ""}</td>
+        <td>${s.planMonths || "—"}m</td>
+        <td>${fmtDate(s.expiresAt)} (${left}d)</td>
+        <td>${left >= 0 ? "Ativo" : "Vencido"}</td>
         <td>
           <button class="btn danger" type="button" data-delst="${s.uid}">Excluir</button>
           <button class="btn" type="button" data-renew="${s.uid}">Renovar</button>
@@ -562,55 +562,55 @@ async function renderStudentsAsync(){
     `;
   });
 
-  tb.querySelectorAll("[data-delst]").forEach(btn=>{
-    btn.onclick = async ()=>{
+  tb.querySelectorAll("[data-delst]").forEach(btn => {
+    btn.onclick = async () => {
       const uid = btn.dataset.delst;
-      if(!confirm("Excluir aluno (somente dados no Firestore)?")) return;
-      try{
+      if (!confirm("Excluir aluno (somente dados Firestore)?")) return;
+      try {
         await deleteDoc(userRef(uid));
         await deleteDoc(plansRef(uid));
         setStatus("Aluno removido (dados)", true);
         await renderStudentsAsync();
         await renderDashboardAsync();
-        await loadStudentsForSelect();
-      }catch(e){
-        setStatus("Erro ao excluir: " + niceErr(e), false);
+      } catch {
+        setStatus("Erro ao excluir", false);
       }
     };
   });
 
-  tb.querySelectorAll("[data-renew]").forEach(btn=>{
-    btn.onclick = async ()=>{
+  tb.querySelectorAll("[data-renew]").forEach(btn => {
+    btn.onclick = async () => {
       const uid = btn.dataset.renew;
       const months = Number(prompt("Renovar por quantos meses? (3/6/12)", "3") || "0");
-      if(!months) return;
-      try{
+      if (!months) return;
+
+      try {
         await updateDoc(userRef(uid), {
           planMonths: months,
           expiresAt: addMonthsISO(months)
         });
         setStatus("Plano renovado", true);
         await renderStudentsAsync();
-      }catch(e){
-        setStatus("Erro ao renovar: " + niceErr(e), false);
+      } catch {
+        setStatus("Erro ao renovar", false);
       }
     };
   });
 }
 
-/* =========================
-   PLANS
-========================= */
-async function loadStudentsForSelect(){
+async function loadStudentsForSelect() {
   const sel = $("#planStudent");
-  if(!sel) return;
+  if (!sel) return;
+
   const students = await loadAllStudents();
   sel.innerHTML = "";
-  students.forEach(s=>{
-    sel.innerHTML += `<option value="${s.uid}">${escapeHtml(s.name || s.username || s.uid)}</option>`;
+  students.forEach(s => {
+    sel.innerHTML += `<option value="${s.uid}">${s.name || s.username || s.uid}</option>`;
   });
 }
-
+/* =========================
+   PLANS (Treinos) - Firestore
+========================= */
 async function getPlanDays(uid){
   const snap = await getDoc(plansRef(uid));
   if(!snap.exists()) return {};
@@ -630,8 +630,7 @@ function fillPlanExercises(){
 
   exercises
     .filter(e => e.group === g)
-    .sort((a,b)=> (a.name||"").localeCompare(b.name||""))
-    .forEach(e => sel.innerHTML += `<option value="${e.id}">${escapeHtml(e.name)}</option>`);
+    .forEach(e => sel.innerHTML += `<option value="${e.id}">${e.name}</option>`);
 }
 
 async function addToPlan(){
@@ -667,6 +666,7 @@ async function renderPlansAdmin(){
   const uid = $("#planStudent")?.value;
   const box = $("#planPreview");
   if(!box) return;
+
   box.innerHTML = "";
 
   if(!uid){
@@ -684,7 +684,7 @@ async function renderPlansAdmin(){
   keys.forEach(day=>{
     const dayDiv = document.createElement("div");
     dayDiv.className="day";
-    dayDiv.innerHTML = `<b>${escapeHtml(day)}</b>`;
+    dayDiv.innerHTML = `<b>${day}</b>`;
     box.appendChild(dayDiv);
 
     (days[day] || []).forEach(it=>{
@@ -693,8 +693,8 @@ async function renderPlansAdmin(){
       const emb = youtubeToEmbed(it.youtube);
 
       item.innerHTML = `
-        <div><b>${escapeHtml(it.name)}</b> (${escapeHtml(it.group)}) — ${escapeHtml(it.sets)}x${escapeHtml(it.reps)} • Descanso: ${escapeHtml(it.rest)}</div>
-        ${it.note ? `<div class="muted">Obs: ${escapeHtml(it.note)}</div>` : ``}
+        <div><b>${it.name}</b> (${it.group}) — ${it.sets}x${it.reps} • Descanso: ${it.rest}</div>
+        ${it.note ? `<div class="muted">Obs: ${it.note}</div>` : ``}
         ${emb ? `<div class="video-box"><iframe src="${emb}" allowfullscreen></iframe></div>` : ``}
       `;
       dayDiv.appendChild(item);
@@ -730,14 +730,16 @@ async function clearAllPlans(){
 }
 
 /* =========================
-   STUDENT: MODAL + CARROSSEL
+   STUDENT: Videos (Netflix-like)
+   - Carrossel por grupos (Comece por aqui + grupos)
 ========================= */
 function bindModal(){
   const modal = $("#videoModal");
   if(!modal) return;
 
   const closeAll = ()=>{
-    $("#modalIframe").src = "";
+    const iframe = $("#modalIframe");
+    if(iframe) iframe.src = "";
     modal.classList.add("hidden");
   };
 
@@ -748,10 +750,13 @@ function bindModal(){
 function openVideoModal(title, youtubeUrl){
   const modal = $("#videoModal");
   if(!modal) return;
+
   const emb = youtubeToEmbed(youtubeUrl);
-  if(!emb) return alert("Este exercício não tem um link válido.");
   $("#modalTitle").textContent = title || "Vídeo";
-  $("#modalIframe").src = emb;
+
+  const iframe = $("#modalIframe");
+  if(iframe) iframe.src = emb ? emb : "";
+
   modal.classList.remove("hidden");
 }
 
@@ -759,20 +764,17 @@ function renderStudentWelcome(name){
   const title = $("#welcomeStudentTitle");
   const text  = $("#welcomeStudentText");
   if(title) title.textContent = `Bem-vindo(a), ${name || "Aluno(a)"}!`;
-  if(text) text.textContent = `Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo. Use a busca para achar exercícios pelo nome.`;
+  if(text) text.textContent =
+    `Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo. Use a busca para achar exercícios pelo nome.`;
 }
 
-function carouselHTML(groupName, itemsHtml){
-  const gid = "car_" + groupName.replace(/\s+/g,"_").toLowerCase();
+function buildRow(title, items){
+  // O CSS do carrossel está no styles.css (row-netflix, row-rail, vcard etc.)
   return `
-    <div class="car-block">
-      <div class="car-title">${escapeHtml(groupName)}</div>
-      <div class="car-wrap">
-        <button class="car-arrow left" type="button" data-carleft="${gid}">‹</button>
-        <div class="car-rail" id="${gid}">
-          ${itemsHtml.join("")}
-        </div>
-        <button class="car-arrow right" type="button" data-carright="${gid}">›</button>
+    <div class="row-netflix">
+      <div class="row-title">${title}</div>
+      <div class="row-rail">
+        ${items.join("")}
       </div>
     </div>
   `;
@@ -780,92 +782,75 @@ function carouselHTML(groupName, itemsHtml){
 
 function videoCardHTML(ex){
   const playable = !!(ex.youtube && youtubeToEmbed(ex.youtube));
+  const badge = playable
+    ? `<span class="badge-ok">PLAY</span>`
+    : `<span class="badge-miss">SEM VÍDEO</span>`;
+
   return `
     <button class="vcard" type="button" data-play="${ex.id}">
       <div class="vcard-top">
-        <div class="vcard-name">${escapeHtml(ex.name || "")}</div>
-        <div class="vcard-sub">${playable ? "Toque para assistir" : "Vídeo não cadastrado"}</div>
+        <div class="vcard-name">${ex.name || ""}</div>
+        <div class="vcard-group">${ex.group || ""}</div>
       </div>
-      <div class="vcard-badge ${playable ? "ok" : "miss"}">${playable ? "PLAY" : "SEM VÍDEO"}</div>
+      <div class="vcard-badge">${badge}</div>
     </button>
   `;
 }
 
-function bindCarouselArrows(container){
-  container.querySelectorAll("[data-carleft]").forEach(btn=>{
-    btn.onclick = ()=>{
-      const id = btn.dataset.carleft;
-      const rail = document.getElementById(id);
-      if(!rail) return;
-      rail.scrollBy({ left: -Math.max(260, rail.clientWidth*0.7), behavior: "smooth" });
-    };
-  });
-
-  container.querySelectorAll("[data-carright]").forEach(btn=>{
-    btn.onclick = ()=>{
-      const id = btn.dataset.carright;
-      const rail = document.getElementById(id);
-      if(!rail) return;
-      rail.scrollBy({ left: Math.max(260, rail.clientWidth*0.7), behavior: "smooth" });
-    };
-  });
-}
-
-function renderStudentVideosCarousel(){
+function renderStudentVideos(){
   const grid = $("#studentVideosGrid");
   if(!grid) return;
 
   const q = ($("#studentSearch")?.value || "").trim().toLowerCase();
   const gFilter = $("#studentFilterGroup")?.value || "ALL";
 
-  // filtra
-  const list = exercises
-    .filter(ex=>{
-      const okGroup = (gFilter === "ALL") || (ex.group === gFilter);
-      const okName = (ex.name || "").toLowerCase().includes(q);
-      return okGroup && okName;
-    })
-    .sort((a,b)=> (a.group||"").localeCompare(b.group||"") || (a.name||"").localeCompare(b.name||""));
+  const list = exercises.filter(ex=>{
+    const okGroup = (gFilter === "ALL") || (ex.group === gFilter);
+    const okName = (ex.name || "").toLowerCase().includes(q);
+    return okGroup && okName;
+  });
 
-  // agrupa por grupo
   const byGroup = {};
   list.forEach(ex=>{
     byGroup[ex.group] = byGroup[ex.group] || [];
     byGroup[ex.group].push(ex);
   });
 
-  // se não tiver nada
-  if(!list.length){
-    grid.innerHTML = `<div class="muted">Nenhum vídeo encontrado.</div>`;
-    return;
-  }
+  // Comece por aqui = primeiros com vídeo válido (watch/youtu.be/shorts também serve)
+  const start = list
+    .filter(ex => !!youtubeToEmbed(ex.youtube || ""))  // << correção: só pega link válido
+    .slice(0, 12)
+    .map(videoCardHTML);
 
   let html = "";
+  if(start.length){
+    html += buildRow("Comece por aqui", start);
+  }
 
-  // render em ordem dos groups do config
   groups.forEach(g=>{
     const arr = (byGroup[g] || []).map(videoCardHTML);
-    if(arr.length){
-      html += carouselHTML(g, arr);
-    }
+    if(arr.length) html += buildRow(g, arr);
   });
+
+  if(!html){
+    html = `<div class="muted">Nenhum vídeo encontrado.</div>`;
+  }
 
   grid.innerHTML = html;
 
-  // clique card -> modal
+  // clique para abrir modal
   grid.querySelectorAll("[data-play]").forEach(btn=>{
     btn.onclick = ()=>{
       const id = btn.dataset.play;
       const ex = exercises.find(x=>x.id===id);
       if(!ex) return;
-      if(!ex.youtube || !youtubeToEmbed(ex.youtube)){
-        return alert("Este exercício ainda não tem um link válido do YouTube.");
-      }
+
+      const emb = youtubeToEmbed(ex.youtube || "");
+      if(!emb) return alert("Este exercício ainda não tem URL do YouTube válido.");
+
       openVideoModal(ex.name, ex.youtube);
     };
   });
-
-  bindCarouselArrows(grid);
 }
 
 /* =========================
@@ -892,7 +877,7 @@ async function renderPlansStudent(){
   keys.forEach(day=>{
     const dayDiv = document.createElement("div");
     dayDiv.className="day";
-    dayDiv.innerHTML = `<b>${escapeHtml(day)}</b>`;
+    dayDiv.innerHTML = `<b>${day}</b>`;
     box.appendChild(dayDiv);
 
     (days[day] || []).forEach(it=>{
@@ -901,12 +886,29 @@ async function renderPlansStudent(){
       const emb = youtubeToEmbed(it.youtube);
 
       item.innerHTML = `
-        <div><b>${escapeHtml(it.name)}</b> (${escapeHtml(it.group)}) — ${escapeHtml(it.sets)}x${escapeHtml(it.reps)} • ${escapeHtml(it.rest)}</div>
-        ${it.note ? `<div class="muted">Obs: ${escapeHtml(it.note)}</div>` : ``}
+        <div><b>${it.name}</b> (${it.group}) — ${it.sets}x${it.reps} • ${it.rest}</div>
+        ${it.note ? `<div class="muted">Obs: ${it.note}</div>` : ``}
         ${emb ? `<div class="video-box"><iframe src="${emb}" allowfullscreen></iframe></div>` : ``}
       `;
       dayDiv.appendChild(item);
     });
+  });
+}
+
+/* =========================
+   DASHBOARD async
+   (sem contar blocos para economizar leituras)
+========================= */
+async function renderDashboardAsync(){
+  if(currentRole !== "admin") return;
+
+  const students = await loadAllStudents();
+  const exCount = exercises.length;
+
+  renderDashboardCounts({
+    studentsCount: students.length,
+    exercisesCount: exCount,
+    blocksCount: 0
   });
 }
 
@@ -919,13 +921,13 @@ function bindMenu(){
       const v = btn.dataset.view;
       showView(v);
 
-      if(currentRole==="admin"){
+      if(currentRole === "admin"){
         if(v==="dashboard") await renderDashboardAsync();
         if(v==="alunos") await renderStudentsAsync();
         if(v==="exercicios") renderExercisesAdmin();
         if(v==="treinos") await renderPlansAdmin();
       }else{
-        if(v==="videos") renderStudentVideosCarousel();
+        if(v==="videos") renderStudentVideos();
         if(v==="meutreino") await renderPlansStudent();
       }
     };
@@ -933,64 +935,46 @@ function bindMenu(){
 }
 
 /* =========================
-   BULK UI
-========================= */
-function bindBulk(){
-  const toggle = $("#btnBulkToggle");
-  const box = $("#bulkBox");
-  if(!toggle || !box) return;
-
-  toggle.onclick = ()=>{
-    box.classList.toggle("hidden");
-  };
-
-  $("#btnBulkCancel")?.addEventListener("click", ()=>{
-    box.classList.add("hidden");
-    $("#bulkText").value = "";
-  });
-
-  $("#btnBulkSave")?.addEventListener("click", async ()=>{
-    const text = ($("#bulkText").value || "").trim();
-    if(!text) return setStatus("Cole as linhas para adicionar em lote.", false);
-    const lines = text.split("\n");
-    await addExercisesBulk(lines);
-    $("#bulkText").value = "";
-    box.classList.add("hidden");
-  });
-}
-
-/* =========================
    INIT
 ========================= */
 async function init(){
-  bindLoginTabs();
-  bindMenu();
-  bindModal();
-  bindBulk();
+  // Proteção: se algo do HTML não existir, evita travar tudo
+  try{
+    bindLoginTabs();
+    bindMenu();
+    bindModal();
+  }catch(e){}
 
+  // binds login
   $("#btnLoginAdmin").onclick = loginAdmin;
   $("#btnLoginAluno").onclick = loginAluno;
   $("#btnLogout").onclick = logout;
 
-  // Admin binds
+  // admin binds
   $("#btnAddStudent").onclick = createStudent;
   $("#btnAddExercise").onclick = addExercise;
+
   $("#filterGroup").onchange = renderExercisesAdmin;
   $("#searchExercise").oninput = renderExercisesAdmin;
 
   $("#planGroup").onchange = fillPlanExercises;
   $("#planStudent").onchange = renderPlansAdmin;
+
   $("#btnAddToPlan").onclick = addToPlan;
   $("#btnClearDay").onclick = clearDay;
   $("#btnClearAllPlans").onclick = clearAllPlans;
 
-  // Student binds
-  $("#studentSearch")?.addEventListener("input", renderStudentVideosCarousel);
-  $("#studentFilterGroup")?.addEventListener("change", renderStudentVideosCarousel);
+  // aluno binds
+  $("#studentSearch")?.addEventListener("input", renderStudentVideos);
+  $("#studentFilterGroup")?.addEventListener("change", renderStudentVideos);
 
+  // config
   await ensureConfig();
   fillGroups();
   fillPlanDays();
+
+  // auth observer
+  let unsubExercises = null;
 
   onAuthStateChanged(auth, async (u)=>{
     currentUser = u;
@@ -1000,7 +984,11 @@ async function init(){
       $("#loginScreen").classList.remove("hidden");
       $("#app").classList.add("hidden");
       currentRole = null;
-      if(unsubExercises){ unsubExercises(); unsubExercises = null; }
+
+      if(unsubExercises){
+        unsubExercises();
+        unsubExercises = null;
+      }
       return;
     }
 
@@ -1012,6 +1000,7 @@ async function init(){
     $("#loginScreen").classList.add("hidden");
     $("#app").classList.remove("hidden");
 
+    // listener exercícios (sempre ligado)
     if(!unsubExercises) unsubExercises = listenExercises();
 
     if(currentRole === "admin"){
@@ -1020,24 +1009,29 @@ async function init(){
       $("#roleSub").textContent = "Administrador(a)";
       $("#welcomeLine").textContent = "Bem-vindo(a), Administrador(a).";
 
+      // carrega alunos no select do treino
       await loadStudentsForSelect();
       fillPlanExercises();
 
       showView("dashboard");
       setStatus("OK", true);
+
       await renderDashboardAsync();
       await renderStudentsAsync();
       renderExercisesAdmin();
-    }else{
+    } else {
       $("#menuAdmin").classList.add("hidden");
       $("#menuAluno").classList.remove("hidden");
       $("#roleSub").textContent = "Aluno";
 
+      // perfil aluno
       const snap = await getDoc(userRef(u.uid));
-      const me = snap.exists() ? (snap.data()||{}) : {};
+      const me = snap.exists() ? (snap.data() || {}) : {};
+
       $("#welcomeLine").textContent = me.name ? `Olá, ${me.name}.` : "Olá!";
       renderStudentWelcome(me.name);
 
+      // vencimento
       if(me.expiresAt && daysLeft(me.expiresAt) < 0){
         alert("Seu plano está vencido. Fale com a administradora.");
         await logout();
@@ -1045,12 +1039,10 @@ async function init(){
       }
 
       showView("videos");
-      renderStudentVideosCarousel();
       setStatus("OK", true);
+      renderStudentVideos();
     }
   });
 }
 
 init();
-
-
