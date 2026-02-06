@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Plataforma de Treinos</title>
-
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
@@ -228,8 +227,17 @@
       </div>
     </section>
 
-    <!-- ===== VÍDEOS (ALUNO) ===== -->
+    <!-- ===== VÍDEOS (ALUNO) Netflix-like ===== -->
     <section id="view-videos" class="view hidden">
+
+      <!-- ✅ Recepção do aluno -->
+      <div class="card" id="welcomeStudentCard">
+        <h3 id="welcomeStudentTitle">Bem-vindo(a)!</h3>
+        <p class="muted" id="welcomeStudentText">
+          Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo.
+        </p>
+      </div>
+
       <div class="card">
         <h3>Plataforma de Vídeos</h3>
 
@@ -238,7 +246,19 @@
           <select id="studentFilterGroup"></select>
         </div>
 
-        <div id="studentVideosGrid" class="grid mt"></div>
+        <div id="studentVideosGrid" class="mt"></div>
+      </div>
+
+      <!-- MODAL PLAYER (Netflix-like) -->
+      <div id="videoModal" class="modal hidden">
+        <div class="modal-backdrop" id="modalClose"></div>
+        <div class="modal-box">
+          <button class="modal-x" id="modalX" type="button">×</button>
+          <div class="modal-title" id="modalTitle">Vídeo</div>
+          <div class="modal-frame">
+            <iframe id="modalIframe" src="" allowfullscreen></iframe>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -263,7 +283,8 @@
   </main>
 </section>
 
-<script src="./app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
+
 
