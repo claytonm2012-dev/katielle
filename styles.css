@@ -303,6 +303,41 @@ table{ min-width: 720px; } /* opcional, mantém legível */
     font-size: 16px; /* evita zoom do iPhone */
   }
 }
+/* ================= VÍDEOS (ALUNO) ================= */
+
+/* Grid de cards (tela Vídeos) */
+.grid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Card de vídeo mais “Netflix” */
+#studentVideosGrid .card{
+  margin-bottom: 0; /* grid já tem gap */
+}
+
+/* Título do exercício dentro do card */
+#studentVideosGrid .card-title{
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+/* Ajuste do iframe dentro do card */
+#studentVideosGrid .video-box iframe{
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+}
+
+/* Mobile: grid vira 1 coluna */
+@media (max-width: 980px){
+  .grid{
+    grid-template-columns: 1fr;
+  }
+}
 
 
 
