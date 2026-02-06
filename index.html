@@ -228,7 +228,7 @@
       </div>
     </section>
 
-    <!-- ===== VÍDEOS (ALUNO) Netflix-like ===== -->
+    <!-- ===== VÍDEOS (ALUNO) ===== -->
     <section id="view-videos" class="view hidden">
 
       <div class="card" id="welcomeStudentCard">
@@ -283,9 +283,35 @@
   </main>
 </section>
 
-<script src="app.js"></script>
+<!-- ================= FIREBASE + APP ================= -->
+<script type="module">
+  // Firebase SDK
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+  import { getFirestore } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+  // Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyC_7DoPLZ6I31ZgD6HRt-d2EKLnLzX-dU0",
+    authDomain: "katielle-amaral.firebaseapp.com",
+    projectId: "katielle-amaral",
+    storageBucket: "katielle-amaral.firebasestorage.app",
+    messagingSenderId: "297322700885",
+    appId: "1:297322700885:web:6b7a55033e3a1ec680f4dc",
+    measurementId: "G-QFQTN4YH72"
+  };
+
+  // Init Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Torna o DB global para o app.js usar
+  window.firebaseDB = db;
+</script>
+
+<!-- Seu app.js precisa estar como type="module" -->
+<script type="module" src="app.js"></script>
+
 </body>
 </html>
-
 
 
