@@ -23,7 +23,7 @@ let students = [];      // {id, name, username, passHash, planMonths, createdAt,
 let plans = {};         // { [studentId]: { [dayBlock]: [items...] } }
 let models = ["A","B","C","D"];
 
-// ✅ "Comece por aqui" (procura por palavras no nome do exercício)
+// ✅ “Comece por aqui”
 const START_HERE = ["Aquecimento","Mobilidade","Alongamento","Prancha","Agachamento","Flexão"];
 
 /* =========================
@@ -364,14 +364,26 @@ function renderExercises(){
     .filter(e => (f==="ALL" || e.group===f) && e.name.toLowerCase().includes(q))
     .forEach(e=>{
       const hasVideo = !!youtubeToEmbed(e.youtube);
+
       tb.innerHTML += `
         <tr>
           <td>${e.group}</td>
           <td>${e.name}</td>
           <td>${hasVideo ? "OK" : "—"}</td>
-          <td>
-            <button class="btn" type="button" onclick="editExercise('${e.id}')">Editar</button>
-            <button class="btn danger" type="button" onclick="deleteExercise('${e.id}')">Excluir</button>
+          <td style="min-width:260px">
+            <div class="row gap" style="align-items:center">
+              <input
+                class="video-input"
+                data-video="${e.id}"
+                placeholder="Cole aqui o URL do YouTube"
+                value="${(e.youtube || "").replaceAll('"','&quot;')}"
+              />
+              <button class="btn" type="button" onclick="saveVideoInline('${e.id}')">Salvar</button>
+            </div>
+            <div class="row gap mt" style="align-items:center">
+              <button class="btn" type="button" onclick="editExercise('${e.id}')">Editar</button>
+              <button class="btn danger" type="button" onclick="deleteExercise('${e.id}')">Excluir</button>
+            </div>
           </td>
         </tr>`;
     });
@@ -383,7 +395,6 @@ window.deleteExercise = function(id){
   if(!confirm("Excluir exercício?")) return;
   exercises = exercises.filter(e=>e.id!==id);
 
-  // remove do treino
   Object.values(plans).forEach(p=>{
     Object.keys(p).forEach(day=>{
       p[day] = (p[day]||[]).filter(it=>it.exerciseId!==id);
@@ -408,7 +419,6 @@ window.editExercise = function(id){
   ex.name = newName;
   ex.youtube = newYoutube;
 
-  // atualiza nos treinos já criados
   Object.values(plans).forEach(p=>{
     Object.keys(p || {}).forEach(day=>{
       (p[day] || []).forEach(it=>{
@@ -425,6 +435,34 @@ window.editExercise = function(id){
   setStatus("Exercício editado ✅", true);
   renderExercises();
   renderDashboard();
+
+  if(!$("#view-treinos")?.classList.contains("hidden")) renderPlansAdmin();
+  if(!$("#view-videos")?.classList.contains("hidden")) renderVideosStudent();
+};
+
+window.saveVideoInline = function(id){
+  const input = document.querySelector(`input[data-video="${id}"]`);
+  if(!input) return;
+  const newYoutube = (input.value || "").trim();
+
+  const ex = exercises.find(e => e.id === id);
+  if(!ex) return;
+
+  ex.youtube = newYoutube;
+
+  Object.values(plans).forEach(p=>{
+    Object.keys(p || {}).forEach(day=>{
+      (p[day] || []).forEach(it=>{
+        if(it.exerciseId === id){
+          it.youtube = newYoutube;
+        }
+      });
+    });
+  });
+
+  saveAll();
+  setStatus("URL do vídeo salvo ✅", true);
+  renderExercises();
 
   if(!$("#view-treinos")?.classList.contains("hidden")) renderPlansAdmin();
   if(!$("#view-videos")?.classList.contains("hidden")) renderVideosStudent();
@@ -609,7 +647,7 @@ function clearAllPlans(){
 }
 
 /* =========================
-   VÍDEOS (ALUNO) Netflix + Comece por aqui
+   VÍDEOS (ALUNO)
 ========================= */
 function renderVideosStudent(){
   const q = ($("#studentSearch")?.value || "").trim().toLowerCase();
@@ -618,16 +656,15 @@ function renderVideosStudent(){
   if(!grid) return;
 
   $("#view-videos")?.classList.add("netflix-page");
+  grid.innerHTML = "";
 
-  // ✅ recepção com nome
   const auth = getAuth();
   const st = students.find(s=>s.id===auth?.studentId);
+
   const welcomeTitle = $("#welcomeStudentTitle");
   const welcomeText  = $("#welcomeStudentText");
   if(welcomeTitle) welcomeTitle.textContent = st ? `Bem-vindo(a), ${st.name}!` : "Bem-vindo(a)!";
   if(welcomeText) welcomeText.textContent = "Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo.";
-
-  grid.innerHTML = "";
 
   const isStartHere = (ex) => START_HERE.some(s => ex.name.toLowerCase().includes(s.toLowerCase()));
 
@@ -635,7 +672,6 @@ function renderVideosStudent(){
   rows.className = "rows";
   grid.appendChild(rows);
 
-  // 1) Comece por aqui
   const startFiltered = exercises.filter(ex=>{
     if(!isStartHere(ex)) return false;
     if(gFilter !== "ALL" && ex.group !== gFilter) return false;
@@ -674,12 +710,11 @@ function renderVideosStudent(){
     });
   }
 
-  // 2) Grupos normais
   const byGroup = {};
   exercises.forEach(ex=>{
     if(gFilter !== "ALL" && ex.group !== gFilter) return;
     if(q && !ex.name.toLowerCase().includes(q)) return;
-    if(isStartHere(ex)) return; // evita duplicar
+    if(isStartHere(ex)) return;
 
     if(!byGroup[ex.group]) byGroup[ex.group] = [];
     byGroup[ex.group].push(ex);
@@ -816,7 +851,6 @@ async function init(){
 
   $("#btnExport").onclick = exportBackup;
 
-  // IMPORT opcional
   $("#importFile").onchange = async ()=>{
     const f=$("#importFile").files[0];
     if(!f) return;
@@ -825,7 +859,7 @@ async function init(){
     setStatus("Arquivo carregado no textarea ✅", true);
   };
 
-  // fechar modal (seguro: só se existir)
+  // Modal events (se existir no HTML)
   const mc = $("#modalClose");
   const mx = $("#modalX");
   if(mc) mc.onclick = closeVideoModal;
@@ -859,11 +893,9 @@ async function init(){
     const st = students.find(s=>s.id===auth.studentId);
     $("#welcomeLine").textContent = st ? `Olá, ${st.name}.` : "Olá!";
 
-    // abre em vídeos
     showView("videos");
     renderVideosStudent();
 
-    // busca e filtro no aluno
     const ss = $("#studentSearch");
     const sf = $("#studentFilterGroup");
     if(ss) ss.oninput = renderVideosStudent;
@@ -872,6 +904,5 @@ async function init(){
 }
 
 init();
-
 
 
