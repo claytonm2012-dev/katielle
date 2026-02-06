@@ -76,6 +76,16 @@ function youtubeThumb(url){
   if(!id) return "";
   return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 }
+function hasValidVideo(ex){
+  return !!youtubeToEmbed(ex.youtube);
+}
+function debounce(fn, wait=250){
+  let t;
+  return (...args)=>{
+    clearTimeout(t);
+    t = setTimeout(()=>fn(...args), wait);
+  };
+}
 
 /* =========================
    HASH
@@ -396,7 +406,7 @@ window.deleteExercise = function(id){
   exercises = exercises.filter(e=>e.id!==id);
 
   Object.values(plans).forEach(p=>{
-    Object.keys(p).forEach(day=>{
+    Object.keys(p || {}).forEach(day=>{
       p[day] = (p[day]||[]).filter(it=>it.exerciseId!==id);
     });
   });
@@ -647,7 +657,7 @@ function clearAllPlans(){
 }
 
 /* =========================
-   VÍDEOS (ALUNO)
+   VÍDEOS (ALUNO) Netflix-like
 ========================= */
 function renderVideosStudent(){
   const q = ($("#studentSearch")?.value || "").trim().toLowerCase();
@@ -655,7 +665,6 @@ function renderVideosStudent(){
   const grid = $("#studentVideosGrid");
   if(!grid) return;
 
-  $("#view-videos")?.classList.add("netflix-page");
   grid.innerHTML = "";
 
   const auth = getAuth();
@@ -664,7 +673,7 @@ function renderVideosStudent(){
   const welcomeTitle = $("#welcomeStudentTitle");
   const welcomeText  = $("#welcomeStudentText");
   if(welcomeTitle) welcomeTitle.textContent = st ? `Bem-vindo(a), ${st.name}!` : "Bem-vindo(a)!";
-  if(welcomeText) welcomeText.textContent = "Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo.";
+  if(welcomeText)  welcomeText.textContent  = "Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo.";
 
   const isStartHere = (ex) => START_HERE.some(s => ex.name.toLowerCase().includes(s.toLowerCase()));
 
@@ -672,94 +681,84 @@ function renderVideosStudent(){
   rows.className = "rows";
   grid.appendChild(rows);
 
-  const startFiltered = exercises.filter(ex=>{
-    if(!isStartHere(ex)) return false;
+  const matchesFilters = (ex)=>{
     if(gFilter !== "ALL" && ex.group !== gFilter) return false;
     if(q && !ex.name.toLowerCase().includes(q)) return false;
     return true;
-  });
+  };
 
-  if(startFiltered.length){
-    const row = document.createElement("div");
-    row.innerHTML = `
-      <div class="nx-row-title">Comece por aqui</div>
-      <div class="nx-track"></div>
-    `;
-    rows.appendChild(row);
-
-    const track = row.querySelector(".nx-track");
-
-    startFiltered.forEach(ex=>{
-      const thumb = youtubeThumb(ex.youtube);
-
-      const card = document.createElement("div");
-      card.className = "nx-card";
-      card.onclick = ()=> openVideoModal(ex);
-
-      card.innerHTML = `
-        ${thumb
-          ? `<img class="nx-thumb" src="${thumb}" alt="thumb">`
-          : `<div class="nx-thumb" style="display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-weight:700;">SEM VÍDEO</div>`
-        }
-        <div class="nx-meta">
-          <div class="nx-name">${ex.name}</div>
-          <div class="nx-sub">${ex.youtube ? "Toque para assistir" : "Vídeo não cadastrado"}</div>
-        </div>
-      `;
-      track.appendChild(card);
-    });
+  const startList = exercises.filter(ex=> isStartHere(ex) && matchesFilters(ex));
+  if(startList.length){
+    rows.appendChild(makeNetflixRow("Comece por aqui", startList));
   }
 
   const byGroup = {};
   exercises.forEach(ex=>{
-    if(gFilter !== "ALL" && ex.group !== gFilter) return;
-    if(q && !ex.name.toLowerCase().includes(q)) return;
     if(isStartHere(ex)) return;
-
+    if(!matchesFilters(ex)) return;
     if(!byGroup[ex.group]) byGroup[ex.group] = [];
     byGroup[ex.group].push(ex);
   });
 
   const groupsSorted = Object.keys(byGroup);
 
-  if(!groupsSorted.length && !startFiltered.length){
+  if(!groupsSorted.length && !startList.length){
     rows.innerHTML = `<div class="muted">Nenhum exercício encontrado.</div>`;
     return;
   }
 
   groupsSorted.forEach(group=>{
     const list = byGroup[group];
-    if(!list.length) return;
-
-    const row = document.createElement("div");
-    row.innerHTML = `
-      <div class="nx-row-title">${group}</div>
-      <div class="nx-track"></div>
-    `;
-    rows.appendChild(row);
-
-    const track = row.querySelector(".nx-track");
-
-    list.forEach(ex=>{
-      const thumb = youtubeThumb(ex.youtube);
-
-      const card = document.createElement("div");
-      card.className = "nx-card";
-      card.onclick = ()=> openVideoModal(ex);
-
-      card.innerHTML = `
-        ${thumb
-          ? `<img class="nx-thumb" src="${thumb}" alt="thumb">`
-          : `<div class="nx-thumb" style="display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-weight:700;">SEM VÍDEO</div>`
-        }
-        <div class="nx-meta">
-          <div class="nx-name">${ex.name}</div>
-          <div class="nx-sub">${ex.youtube ? "Toque para assistir" : "Vídeo não cadastrado"}</div>
-        </div>
-      `;
-      track.appendChild(card);
-    });
+    if(list?.length) rows.appendChild(makeNetflixRow(group, list));
   });
+}
+
+function makeNetflixRow(title, list){
+  const row = document.createElement("div");
+  row.className = "nx-row";
+
+  row.innerHTML = `
+    <div class="nx-row-title">${title}</div>
+    <button class="nx-nav left" type="button" aria-label="Voltar">‹</button>
+    <button class="nx-nav right" type="button" aria-label="Avançar">›</button>
+    <div class="nx-track"></div>
+  `;
+
+  const track = row.querySelector(".nx-track");
+  const btnL = row.querySelector(".nx-nav.left");
+  const btnR = row.querySelector(".nx-nav.right");
+
+  list.forEach(ex=>{
+    const thumb = youtubeThumb(ex.youtube);
+
+    const card = document.createElement("div");
+    card.className = "nx-card";
+    card.onclick = ()=> {
+      if(!hasValidVideo(ex)){
+        setStatus("Esse exercício ainda está sem vídeo cadastrado.", false);
+        return;
+      }
+      openVideoModal(ex);
+    };
+
+    card.innerHTML = `
+      ${thumb
+        ? `<img class="nx-thumb" src="${thumb}" loading="lazy" alt="thumb">`
+        : `<div class="nx-thumb" style="display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-weight:800;">SEM VÍDEO</div>`
+      }
+      <div class="nx-meta">
+        <div class="nx-name">${ex.name}</div>
+        <div class="nx-sub">${hasValidVideo(ex) ? "Toque para assistir" : "Vídeo não cadastrado"}</div>
+      </div>
+    `;
+    track.appendChild(card);
+  });
+
+  const scrollBy = ()=> Math.round(track.clientWidth * 0.9);
+  btnL.onclick = ()=> track.scrollBy({ left: -scrollBy(), behavior:"smooth" });
+  btnR.onclick = ()=> track.scrollBy({ left:  scrollBy(), behavior:"smooth" });
+
+  return row;
 }
 
 /* =========================
@@ -859,7 +858,7 @@ async function init(){
     setStatus("Arquivo carregado no textarea ✅", true);
   };
 
-  // Modal events (se existir no HTML)
+  // Modal events
   const mc = $("#modalClose");
   const mx = $("#modalX");
   if(mc) mc.onclick = closeVideoModal;
@@ -898,11 +897,12 @@ async function init(){
 
     const ss = $("#studentSearch");
     const sf = $("#studentFilterGroup");
-    if(ss) ss.oninput = renderVideosStudent;
+    if(ss) ss.oninput = debounce(renderVideosStudent, 250);
     if(sf) sf.onchange = renderVideosStudent;
   }
 }
 
 init();
+
 
 
