@@ -21,6 +21,13 @@ body{
 .hidden{display:none !important}
 .muted{color:var(--muted)}
 
+.brand-sub{
+  margin:6px 0 0;
+  color: rgba(255,255,255,.85);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* ================= LOGIN ================= */
 .login{
   min-height:100vh;
@@ -404,6 +411,24 @@ table{ min-width: 720px; }
   height:auto;
   border:0;
 }
+
+/* =========================
+   ADM: input URL na lista
+========================= */
+.video-input{
+  height:44px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.35);
+  color:#fff;
+  outline:none;
+  padding:0 12px;
+  min-width: 180px;
+}
+.video-input:focus{
+  border-color: rgba(229,9,20,.55);
+}
+
 
 
 
