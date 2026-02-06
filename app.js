@@ -23,6 +23,9 @@ let students = [];      // {id, name, username, passHash, planMonths, createdAt,
 let plans = {};         // { [studentId]: { [dayBlock]: [items...] } }
 let models = ["A","B","C","D"];
 
+// ✅ "Comece por aqui" (procura por palavras no nome do exercício)
+const START_HERE = ["Aquecimento","Mobilidade","Alongamento","Prancha","Agachamento","Flexão"];
+
 /* =========================
    HELPERS
 ========================= */
@@ -59,6 +62,19 @@ function youtubeToEmbed(url){
   if(u.includes("watch?v=")) return "https://www.youtube.com/embed/" + u.split("watch?v=")[1].split("&")[0];
   if(u.includes("shorts/")) return "https://www.youtube.com/embed/" + u.split("shorts/")[1].split("?")[0];
   return "";
+}
+function youtubeId(url){
+  if(!url) return "";
+  const u = url.trim();
+  if(u.includes("youtu.be/")) return u.split("youtu.be/")[1].split("?")[0];
+  if(u.includes("watch?v=")) return u.split("watch?v=")[1].split("&")[0];
+  if(u.includes("shorts/")) return u.split("shorts/")[1].split("?")[0];
+  return "";
+}
+function youtubeThumb(url){
+  const id = youtubeId(url);
+  if(!id) return "";
+  return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 }
 
 /* =========================
@@ -173,7 +189,6 @@ function fillGroups(){
     filterGroup.innerHTML = `<option value="ALL">Todos</option>`;
     groups.forEach(g=> filterGroup.innerHTML += `<option value="${g}">${g}</option>`);
   }
-
   if(studentFilterGroup){
     studentFilterGroup.innerHTML = `<option value="ALL">Todos</option>`;
     groups.forEach(g=> studentFilterGroup.innerHTML += `<option value="${g}">${g}</option>`);
@@ -201,8 +216,9 @@ function fillPlanDays(){
 }
 
 function fillPlanExercises(){
-  const g = $("#planGroup").value;
+  const g = $("#planGroup")?.value;
   const sel = $("#planExercise");
+  if(!sel || !g) return;
   sel.innerHTML="";
   exercises.filter(e=>e.group===g).forEach(e=>{
     sel.innerHTML += `<option value="${e.id}">${e.name}</option>`;
@@ -285,7 +301,7 @@ async function addStudent(){
   $("#studentPass").value="";
 
   saveAll();
-  setStatus("Aluno criado",true);
+  setStatus("Aluno criado ✅",true);
   renderStudents();
   fillStudentsSelect();
   renderDashboard();
@@ -293,6 +309,7 @@ async function addStudent(){
 
 function renderStudents(){
   const tb=$("#studentsTable tbody");
+  if(!tb) return;
   tb.innerHTML="";
   students.forEach(s=>{
     tb.innerHTML += `
@@ -317,7 +334,7 @@ window.deleteStudent = function(id){
 };
 
 /* =========================
-   EXERCISES
+   EXERCISES (ADM)
 ========================= */
 function addExercise(){
   const g=$("#exGroup").value;
@@ -330,13 +347,15 @@ function addExercise(){
   $("#exName").value="";
   $("#exYoutube").value="";
   saveAll();
-  setStatus("Exercício adicionado",true);
+  setStatus("Exercício adicionado ✅",true);
   renderExercises();
   renderDashboard();
 }
 
 function renderExercises(){
   const tb=$("#exercisesTable tbody");
+  if(!tb) return;
+
   tb.innerHTML="";
   const f=$("#filterGroup").value;
   const q=$("#searchExercise").value.trim().toLowerCase();
@@ -344,30 +363,71 @@ function renderExercises(){
   exercises
     .filter(e => (f==="ALL" || e.group===f) && e.name.toLowerCase().includes(q))
     .forEach(e=>{
+      const hasVideo = !!youtubeToEmbed(e.youtube);
       tb.innerHTML += `
         <tr>
           <td>${e.group}</td>
           <td>${e.name}</td>
-          <td>${e.youtube ? "Embed" : "—"}</td>
-          <td><button class="btn danger" type="button" onclick="deleteExercise('${e.id}')">Excluir</button></td>
+          <td>${hasVideo ? "OK" : "—"}</td>
+          <td>
+            <button class="btn" type="button" onclick="editExercise('${e.id}')">Editar</button>
+            <button class="btn danger" type="button" onclick="deleteExercise('${e.id}')">Excluir</button>
+          </td>
         </tr>`;
     });
 
   fillPlanExercises();
 }
+
 window.deleteExercise = function(id){
   if(!confirm("Excluir exercício?")) return;
   exercises = exercises.filter(e=>e.id!==id);
 
+  // remove do treino
   Object.values(plans).forEach(p=>{
     Object.keys(p).forEach(day=>{
-      p[day] = p[day].filter(it=>it.exerciseId!==id);
+      p[day] = (p[day]||[]).filter(it=>it.exerciseId!==id);
     });
   });
 
   saveAll();
+  setStatus("Exercício excluído ✅", true);
   renderExercises();
   renderDashboard();
+};
+
+window.editExercise = function(id){
+  const ex = exercises.find(e => e.id === id);
+  if(!ex) return;
+
+  const newName = (prompt("Editar nome do exercício:", ex.name) || "").trim();
+  if(!newName) return;
+
+  const newYoutube = (prompt("Editar link do YouTube (pode deixar vazio):", ex.youtube || "") || "").trim();
+
+  ex.name = newName;
+  ex.youtube = newYoutube;
+
+  // atualiza nos treinos já criados
+  Object.values(plans).forEach(p=>{
+    Object.keys(p || {}).forEach(day=>{
+      (p[day] || []).forEach(it=>{
+        if(it.exerciseId === id){
+          it.name = newName;
+          it.youtube = newYoutube;
+          it.group = ex.group;
+        }
+      });
+    });
+  });
+
+  saveAll();
+  setStatus("Exercício editado ✅", true);
+  renderExercises();
+  renderDashboard();
+
+  if(!$("#view-treinos")?.classList.contains("hidden")) renderPlansAdmin();
+  if(!$("#view-videos")?.classList.contains("hidden")) renderVideosStudent();
 };
 
 /* =========================
@@ -401,7 +461,7 @@ function bindBulk(){
     saveAll();
     $("#bulkText").value="";
     $("#bulkBox").classList.add("hidden");
-    setStatus(`Lote salvo: ${count} exercícios`,true);
+    setStatus(`Lote salvo: ${count} exercícios ✅`,true);
     renderExercises();
     renderDashboard();
   };
@@ -417,7 +477,7 @@ function addModel(){
   models.push(m);
   saveAll();
   fillPlanDays();
-  setStatus("Modelo adicionado",true);
+  setStatus("Modelo adicionado ✅",true);
 }
 
 /* =========================
@@ -447,14 +507,16 @@ function addToPlan(){
   });
 
   saveAll();
-  setStatus("Adicionado no treino",true);
+  setStatus("Adicionado no treino ✅",true);
   renderPlansAdmin();
   renderDashboard();
 }
 
 function renderPlansAdmin(){
-  const sid=$("#planStudent").value;
+  const sid=$("#planStudent")?.value;
   const box=$("#planPreview");
+  if(!box) return;
+
   box.innerHTML="";
 
   if(!sid){
@@ -472,7 +534,7 @@ function renderPlansAdmin(){
     dayDiv.innerHTML = `<b>${day}</b>`;
     box.appendChild(dayDiv);
 
-    plans[sid][day].forEach(it=>{
+    (plans[sid][day]||[]).forEach(it=>{
       const item=document.createElement("div");
       item.className="item";
       const emb=youtubeToEmbed(it.youtube);
@@ -491,6 +553,8 @@ function renderPlansStudent(){
   const auth=getAuth();
   const sid=auth?.studentId;
   const box=$("#studentPlanPreview");
+  if(!box) return;
+
   box.innerHTML="";
 
   if(!sid || !plans[sid] || !Object.keys(plans[sid]).length){
@@ -504,7 +568,7 @@ function renderPlansStudent(){
     dayDiv.innerHTML = `<b>${day}</b>`;
     box.appendChild(dayDiv);
 
-    plans[sid][day].forEach(it=>{
+    (plans[sid][day]||[]).forEach(it=>{
       const item=document.createElement("div");
       item.className="item";
       const emb=youtubeToEmbed(it.youtube);
@@ -527,7 +591,7 @@ function clearDay(){
 
   delete plans[sid][day];
   saveAll();
-  setStatus("Dia limpo",true);
+  setStatus("Dia limpo ✅",true);
   renderPlansAdmin();
   renderDashboard();
 }
@@ -539,59 +603,160 @@ function clearAllPlans(){
 
   delete plans[sid];
   saveAll();
-  setStatus("Treinos apagados",true);
+  setStatus("Treinos apagados ✅",true);
   renderPlansAdmin();
   renderDashboard();
 }
 
 /* =========================
-   VÍDEOS (ALUNO)
+   VÍDEOS (ALUNO) Netflix + Comece por aqui
 ========================= */
 function renderVideosStudent(){
   const q = ($("#studentSearch")?.value || "").trim().toLowerCase();
-  const g = $("#studentFilterGroup")?.value || "ALL";
+  const gFilter = $("#studentFilterGroup")?.value || "ALL";
   const grid = $("#studentVideosGrid");
   if(!grid) return;
 
+  $("#view-videos")?.classList.add("netflix-page");
+
+  // ✅ recepção com nome
+  const auth = getAuth();
+  const st = students.find(s=>s.id===auth?.studentId);
+  const welcomeTitle = $("#welcomeStudentTitle");
+  const welcomeText  = $("#welcomeStudentText");
+  if(welcomeTitle) welcomeTitle.textContent = st ? `Bem-vindo(a), ${st.name}!` : "Bem-vindo(a)!";
+  if(welcomeText) welcomeText.textContent = "Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo.";
+
   grid.innerHTML = "";
 
-  const filtered = exercises.filter(ex=>{
-    const okGroup = (g==="ALL" || ex.group===g);
-    const okName = ex.name.toLowerCase().includes(q);
-    return okGroup && okName;
+  const isStartHere = (ex) => START_HERE.some(s => ex.name.toLowerCase().includes(s.toLowerCase()));
+
+  const rows = document.createElement("div");
+  rows.className = "rows";
+  grid.appendChild(rows);
+
+  // 1) Comece por aqui
+  const startFiltered = exercises.filter(ex=>{
+    if(!isStartHere(ex)) return false;
+    if(gFilter !== "ALL" && ex.group !== gFilter) return false;
+    if(q && !ex.name.toLowerCase().includes(q)) return false;
+    return true;
   });
 
-  if(!filtered.length){
-    grid.innerHTML = `<div class="muted">Nenhum exercício encontrado.</div>`;
+  if(startFiltered.length){
+    const row = document.createElement("div");
+    row.innerHTML = `
+      <div class="nx-row-title">Comece por aqui</div>
+      <div class="nx-track"></div>
+    `;
+    rows.appendChild(row);
+
+    const track = row.querySelector(".nx-track");
+
+    startFiltered.forEach(ex=>{
+      const thumb = youtubeThumb(ex.youtube);
+
+      const card = document.createElement("div");
+      card.className = "nx-card";
+      card.onclick = ()=> openVideoModal(ex);
+
+      card.innerHTML = `
+        ${thumb
+          ? `<img class="nx-thumb" src="${thumb}" alt="thumb">`
+          : `<div class="nx-thumb" style="display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-weight:700;">SEM VÍDEO</div>`
+        }
+        <div class="nx-meta">
+          <div class="nx-name">${ex.name}</div>
+          <div class="nx-sub">${ex.youtube ? "Toque para assistir" : "Vídeo não cadastrado"}</div>
+        </div>
+      `;
+      track.appendChild(card);
+    });
+  }
+
+  // 2) Grupos normais
+  const byGroup = {};
+  exercises.forEach(ex=>{
+    if(gFilter !== "ALL" && ex.group !== gFilter) return;
+    if(q && !ex.name.toLowerCase().includes(q)) return;
+    if(isStartHere(ex)) return; // evita duplicar
+
+    if(!byGroup[ex.group]) byGroup[ex.group] = [];
+    byGroup[ex.group].push(ex);
+  });
+
+  const groupsSorted = Object.keys(byGroup);
+
+  if(!groupsSorted.length && !startFiltered.length){
+    rows.innerHTML = `<div class="muted">Nenhum exercício encontrado.</div>`;
     return;
   }
 
-  filtered.forEach(ex=>{
-    const emb = youtubeToEmbed(ex.youtube);
+  groupsSorted.forEach(group=>{
+    const list = byGroup[group];
+    if(!list.length) return;
 
-    const card = document.createElement("div");
-    card.className = "card";
-
-    card.innerHTML = `
-      <div class="card-title">${ex.name}</div>
-      <div class="muted">${ex.group}</div>
-      ${emb ? `<div class="video-box"><iframe src="${emb}" allowfullscreen></iframe></div>` : `<div class="muted mt">Sem vídeo cadastrado.</div>`}
+    const row = document.createElement("div");
+    row.innerHTML = `
+      <div class="nx-row-title">${group}</div>
+      <div class="nx-track"></div>
     `;
+    rows.appendChild(row);
 
-    grid.appendChild(card);
+    const track = row.querySelector(".nx-track");
+
+    list.forEach(ex=>{
+      const thumb = youtubeThumb(ex.youtube);
+
+      const card = document.createElement("div");
+      card.className = "nx-card";
+      card.onclick = ()=> openVideoModal(ex);
+
+      card.innerHTML = `
+        ${thumb
+          ? `<img class="nx-thumb" src="${thumb}" alt="thumb">`
+          : `<div class="nx-thumb" style="display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-weight:700;">SEM VÍDEO</div>`
+        }
+        <div class="nx-meta">
+          <div class="nx-name">${ex.name}</div>
+          <div class="nx-sub">${ex.youtube ? "Toque para assistir" : "Vídeo não cadastrado"}</div>
+        </div>
+      `;
+      track.appendChild(card);
+    });
   });
+}
+
+/* =========================
+   MODAL PLAYER
+========================= */
+function openVideoModal(ex){
+  const modal = $("#videoModal");
+  const iframe = $("#modalIframe");
+  const title = $("#modalTitle");
+  if(!modal || !iframe || !title) return;
+
+  title.textContent = ex.name;
+
+  const emb = youtubeToEmbed(ex.youtube);
+  iframe.src = emb ? (emb + "?autoplay=1&rel=0") : "";
+
+  modal.classList.remove("hidden");
+}
+function closeVideoModal(){
+  const modal = $("#videoModal");
+  const iframe = $("#modalIframe");
+  if(iframe) iframe.src = "";
+  if(modal) modal.classList.add("hidden");
 }
 
 /* =========================
    BACKUP
 ========================= */
 function exportBackup(){
-  const data = {
-    exportedAt: nowISO(),
-    groups, exercises, students, plans, models
-  };
+  const data = { exportedAt: nowISO(), groups, exercises, students, plans, models };
   $("#backupText").value = JSON.stringify(data, null, 2);
-  setStatus("Backup exportado no textarea",true);
+  setStatus("Backup exportado ✅",true);
 }
 
 /* =========================
@@ -602,14 +767,15 @@ function bindMenu(){
     btn.onclick=()=>{
       showView(btn.dataset.view);
       const auth=getAuth();
+
       if(auth?.role==="admin"){
         if(btn.dataset.view==="dashboard") renderDashboard();
         if(btn.dataset.view==="alunos") renderStudents();
         if(btn.dataset.view==="exercicios") renderExercises();
         if(btn.dataset.view==="treinos") renderPlansAdmin();
       }else{
-        if(btn.dataset.view==="meutreino") renderPlansStudent();
         if(btn.dataset.view==="videos") renderVideosStudent();
+        if(btn.dataset.view==="meutreino") renderPlansStudent();
       }
     };
   });
@@ -636,6 +802,7 @@ async function init(){
 
   $("#btnAddStudent").onclick = addStudent;
   $("#btnAddExercise").onclick = addExercise;
+
   $("#filterGroup").onchange = renderExercises;
   $("#searchExercise").oninput = renderExercises;
 
@@ -648,6 +815,21 @@ async function init(){
   $("#btnClearAllPlans").onclick = clearAllPlans;
 
   $("#btnExport").onclick = exportBackup;
+
+  // IMPORT opcional
+  $("#importFile").onchange = async ()=>{
+    const f=$("#importFile").files[0];
+    if(!f) return;
+    const txt = await f.text();
+    $("#backupText").value = txt;
+    setStatus("Arquivo carregado no textarea ✅", true);
+  };
+
+  // fechar modal (seguro: só se existir)
+  const mc = $("#modalClose");
+  const mx = $("#modalX");
+  if(mc) mc.onclick = closeVideoModal;
+  if(mx) mx.onclick = closeVideoModal;
 
   const auth = getAuth();
   if(!auth){
@@ -673,16 +855,23 @@ async function init(){
     $("#menuAdmin").classList.add("hidden");
     $("#menuAluno").classList.remove("hidden");
     $("#roleSub").textContent="Aluno";
+
     const st = students.find(s=>s.id===auth.studentId);
     $("#welcomeLine").textContent = st ? `Olá, ${st.name}.` : "Olá!";
+
+    // abre em vídeos
     showView("videos");
     renderVideosStudent();
 
-    $("#studentSearch").oninput = renderVideosStudent;
-    $("#studentFilterGroup").onchange = renderVideosStudent;
+    // busca e filtro no aluno
+    const ss = $("#studentSearch");
+    const sf = $("#studentFilterGroup");
+    if(ss) ss.oninput = renderVideosStudent;
+    if(sf) sf.onchange = renderVideosStudent;
   }
 }
 
 init();
+
 
 
