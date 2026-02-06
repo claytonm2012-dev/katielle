@@ -461,5 +461,73 @@ td{ font-size:14px; }
   .vcard{ min-width: 180px; max-width: 180px; height: 132px; }
   .modal-box{ margin: 40px auto; }
 }
+/* =========================
+   NETFLIX ROW HEAD + SETAS
+========================= */
+.row-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
 
+.row-arrows{
+  display:flex;
+  gap:10px;
+}
+
+.row-arrow{
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.45);
+  color:#fff;
+  font-size:24px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition: .15s ease;
+}
+
+.row-arrow:hover{
+  transform: scale(1.05);
+  background: rgba(229,9,20,.35);
+  border-color: rgba(229,9,20,.55);
+}
+/* leve fade nas laterais (cara de Netflix) */
+.row-netflix{
+  position: relative;
+}
+
+.row-netflix::before,
+.row-netflix::after{
+  content:"";
+  position:absolute;
+  top: 44px;              /* abaixo do título */
+  bottom: 0;
+  width: 26px;
+  pointer-events:none;
+  z-index: 2;
+}
+
+.row-netflix::before{
+  left: 0;
+  background: linear-gradient(to right, rgba(11,11,13,1), rgba(11,11,13,0));
+}
+
+.row-netflix::after{
+  right: 0;
+  background: linear-gradient(to left, rgba(11,11,13,1), rgba(11,11,13,0));
+}
+
+/* setas menores no celular */
+@media (max-width: 700px){
+  .row-arrow{
+    width: 38px;
+    height: 38px;
+    font-size: 22px;
+  }
+}
 
