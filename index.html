@@ -34,7 +34,7 @@
       <input id="loginUser" type="text" placeholder="admin">
       <label>Senha</label>
       <input id="loginPass" type="password">
-      <button id="btnLoginAdmin" class="btn primary full" type="button">Entrar como ADM</button>
+      <button id="btnLoginAdmin" class="btn primary full">Entrar como ADM</button>
     </div>
 
     <!-- ALUNO -->
@@ -43,7 +43,7 @@
       <input id="studentUserLogin" type="text">
       <label>Senha</label>
       <input id="studentPassLogin" type="password">
-      <button id="btnLoginAluno" class="btn primary full" type="button">Entrar como Aluno</button>
+      <button id="btnLoginAluno" class="btn primary full">Entrar como Aluno</button>
     </div>
 
     <p class="login-foot">Acesso do aluno é criado pelo administrador.</p>
@@ -68,21 +68,21 @@
 
     <!-- MENU ADM -->
     <nav id="menuAdmin" class="menu">
-      <button class="menu-item active" data-view="dashboard" type="button">Dashboard</button>
-      <button class="menu-item" data-view="alunos" type="button">Alunos</button>
-      <button class="menu-item" data-view="exercicios" type="button">Exercícios</button>
-      <button class="menu-item" data-view="treinos" type="button">Treinos</button>
-      <button class="menu-item" data-view="backup" type="button">Backup</button>
+      <button class="menu-item active" data-view="dashboard">Dashboard</button>
+      <button class="menu-item" data-view="alunos">Alunos</button>
+      <button class="menu-item" data-view="exercicios">Exercícios</button>
+      <button class="menu-item" data-view="treinos">Treinos</button>
+      <button class="menu-item" data-view="backup">Backup</button>
     </nav>
 
     <!-- MENU ALUNO -->
     <nav id="menuAluno" class="menu hidden">
-      <button class="menu-item active" data-view="videos" type="button">Vídeos</button>
-      <button class="menu-item" data-view="meutreino" type="button">Meu Treino</button>
+      <button class="menu-item active" data-view="videos">Vídeos</button>
+      <button class="menu-item" data-view="meutreino">Meu Treino</button>
     </nav>
 
     <div class="sidebar-bottom">
-      <button id="btnLogout" class="btn danger full" type="button">Sair</button>
+      <button id="btnLogout" class="btn danger full">Sair</button>
     </div>
   </aside>
 
@@ -101,15 +101,15 @@
       <div class="grid3">
         <div class="card">
           <div class="card-title">Alunos</div>
-          <div id="dashStudents" class="big">—</div>
+          <div id="dashStudents" class="big">0</div>
         </div>
         <div class="card">
           <div class="card-title">Exercícios</div>
-          <div id="dashExercises" class="big">—</div>
+          <div id="dashExercises" class="big">0</div>
         </div>
         <div class="card">
           <div class="card-title">Dias/Blocos</div>
-          <div id="dashPlans" class="big">—</div>
+          <div id="dashPlans" class="big">0</div>
         </div>
       </div>
     </section>
@@ -127,7 +127,7 @@
             <option value="6">6 meses</option>
             <option value="12">12 meses</option>
           </select>
-          <button id="btnAddStudent" class="btn primary" type="button">Criar</button>
+          <button id="btnAddStudent" class="btn primary">Criar</button>
         </div>
       </div>
 
@@ -159,18 +159,18 @@
         <div class="row wrap gap">
           <select id="exGroup"></select>
           <input id="exName" placeholder="Nome do exercício">
-          <input id="exYoutube" placeholder="Link YouTube (watch ou youtu.be)">
-          <button id="btnAddExercise" class="btn primary" type="button">Adicionar</button>
+          <input id="exYoutube" placeholder="Link YouTube">
+          <button id="btnAddExercise" class="btn primary">Adicionar</button>
         </div>
 
         <div class="row wrap gap mt">
-          <button id="btnBulkToggle" class="btn" type="button">Adicionar em lote</button>
+          <button id="btnBulkToggle" class="btn">Adicionar em lote</button>
         </div>
 
         <div id="bulkBox" class="hidden mt">
           <textarea id="bulkText" placeholder="1 exercício por linha"></textarea>
-          <button id="btnBulkSave" class="btn primary" type="button">Salvar lote</button>
-          <button id="btnBulkCancel" class="btn" type="button">Cancelar</button>
+          <button id="btnBulkSave" class="btn primary">Salvar lote</button>
+          <button id="btnBulkCancel" class="btn">Cancelar</button>
         </div>
 
         <hr>
@@ -206,6 +206,7 @@
           <select id="planStudent"></select>
 
           <select id="planDay"></select>
+          <button id="btnAddModel" class="btn">+ Modelo</button>
 
           <select id="planGroup"></select>
           <select id="planExercise"></select>
@@ -215,12 +216,12 @@
           <input id="planRest" placeholder="Descanso">
           <input id="planNote" placeholder="Observação">
 
-          <button id="btnAddToPlan" class="btn primary" type="button">Adicionar</button>
+          <button id="btnAddToPlan" class="btn primary">Adicionar</button>
         </div>
 
         <div class="row gap mt">
-          <button id="btnClearDay" class="btn danger" type="button">Limpar Dia</button>
-          <button id="btnClearAllPlans" class="btn danger" type="button">Apagar Treinos</button>
+          <button id="btnClearDay" class="btn danger">Limpar Dia</button>
+          <button id="btnClearAllPlans" class="btn danger">Apagar Treinos</button>
         </div>
 
         <div id="planPreview" class="mt"></div>
@@ -265,7 +266,7 @@
     <section id="view-backup" class="view hidden">
       <div class="card">
         <h3>Backup</h3>
-        <button id="btnExport" class="btn primary" type="button">Exportar</button>
+        <button id="btnExport" class="btn primary">Exportar</button>
         <input id="importFile" type="file" accept=".json">
         <textarea id="backupText"></textarea>
       </div>
@@ -285,4 +286,3 @@
 <script type="module" src="app.js"></script>
 </body>
 </html>
-
