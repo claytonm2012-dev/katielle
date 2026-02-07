@@ -77,6 +77,10 @@ let exercises = []; // {id, group, name, youtube}
 let currentUser = null;
 let currentRole = null;
 
+// >>> FIX: evita abrir logado automaticamente ao carregar a página
+// Só libera a troca de telas depois que o usuário clicou em "Entrar".
+let allowAutoEnter = false;
+
 /* =========================
    HELPERS
 ========================= */
@@ -107,29 +111,44 @@ function normalizeEmail(userLike) {
 }
 
 /* =========================================================
-   YOUTUBE (SEM SHORTS)
+   YOUTUBE (COM SHORTS)
    Aceita:
    - https://www.youtube.com/watch?v=ID
    - https://youtu.be/ID
+   - https://www.youtube.com/shorts/ID
+   - https://www.youtube.com/embed/ID
 ========================================================= */
 function youtubeToEmbed(url) {
   if (!url) return "";
-  let u = String(url).trim().replace(/\s+/g, "");
+  let u = String(url).trim();
 
-  // embed já pronto
+  // remove espaços
+  u = u.replace(/\s+/g, "");
+
+  // já é embed
   if (u.includes("youtube.com/embed/")) return u;
+
+  // shorts
+  if (u.includes("youtube.com/shorts/")) {
+    const id = u.split("youtube.com/shorts/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0];
+    return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
+  }
 
   // youtu.be/ID
   if (u.includes("youtu.be/")) {
-    const id = u.split("youtu.be/")[1]?.split("?")[0]?.split("&")[0];
-    return id ? `https://www.youtube.com/embed/${id}` : "";
+    const id = u.split("youtu.be/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0];
+    return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
   }
 
   // watch?v=ID
   if (u.includes("watch?v=")) {
     const id = u.split("watch?v=")[1]?.split("&")[0];
-    return id ? `https://www.youtube.com/embed/${id}` : "";
+    return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
   }
+
+  // caso venha com ?si=... e outras variações, tenta achar "v="
+  const m = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+  if (m && m[1]) return `https://www.youtube.com/embed/${m[1]}?playsinline=1`;
 
   return "";
 }
@@ -256,6 +275,7 @@ function bindLoginTabs() {
    AUTH
 ========================= */
 async function loginAdmin() {
+  allowAutoEnter = true; // >>> FIX: só entra depois do clique
   const email = normalizeEmail(safeGet("#loginUser")?.value);
   const pass = (safeGet("#loginPass")?.value || "").trim();
   if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
@@ -268,6 +288,7 @@ async function loginAdmin() {
 }
 
 async function loginAluno() {
+  allowAutoEnter = true; // >>> FIX: só entra depois do clique
   const email = normalizeEmail(safeGet("#studentUserLogin")?.value);
   const pass = (safeGet("#studentPassLogin")?.value || "").trim();
   if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
@@ -280,6 +301,7 @@ async function loginAluno() {
 }
 
 async function logout() {
+  allowAutoEnter = false; // >>> FIX: volta a exigir clique pra entrar
   await signOut(auth);
 }
 
@@ -303,6 +325,7 @@ async function getMyRole(uid) {
   if (!snap.exists()) return null;
   return (snap.data() || {}).role || null;
 }
+
 /* =========================
    EXERCISES (SEM orderBy)
    -> evita erro de índice e evita “sumiu”
@@ -334,7 +357,7 @@ async function addExercise() {
   if (!n) return setStatus("Digite o nome do exercício", false);
 
   if (y && !youtubeToEmbed(y)) {
-    return setStatus("Cole um link válido do YouTube (watch ou youtu.be)", false);
+    return setStatus("Cole um link válido do YouTube (watch / youtu.be / shorts)", false);
   }
 
   try {
@@ -448,7 +471,7 @@ function renderExercisesAdmin() {
           <button class="btn" type="button" data-edit="${e.id}">Editar</button>
           <button class="btn danger" type="button" data-del="${e.id}">Excluir</button>
 
-          <input data-url="${e.id}" placeholder="Cole URL do YouTube"
+          <input data-url="${e.id}" placeholder="Cole URL do YouTube (watch/youtu.be/shorts)"
             value="${String(e.youtube || "").replaceAll('"', "&quot;")}"
             style="height:40px; min-width:220px;">
 
@@ -472,10 +495,10 @@ function renderExercisesAdmin() {
       if (!newName) return;
 
       const newGroup = (prompt("Grupo:", ex.group || "") || "").trim() || ex.group;
-      const newUrl = (prompt("URL YouTube (watch/youtu.be) ou vazio:", ex.youtube || "") || "").trim();
+      const newUrl = (prompt("URL YouTube (watch/youtu.be/shorts) ou vazio:", ex.youtube || "") || "").trim();
 
       if (newUrl && !youtubeToEmbed(newUrl)) {
-        alert("Link inválido. Use watch?v= ou youtu.be");
+        alert("Link inválido. Use watch?v=, youtu.be ou youtube.com/shorts/");
         return;
       }
 
@@ -490,7 +513,7 @@ function renderExercisesAdmin() {
       const url = (input?.value || "").trim();
 
       if (url && !youtubeToEmbed(url)) {
-        alert("Link inválido. Use watch?v= ou youtu.be");
+        alert("Link inválido. Use watch?v=, youtu.be ou youtube.com/shorts/");
         return;
       }
 
@@ -625,6 +648,7 @@ async function renderStudentsAsync() {
     };
   });
 }
+
 /* =========================
    PLANS
 ========================= */
@@ -791,7 +815,6 @@ function renderStudentWelcome(name) {
 
 /* =========================
    ALUNO: CARROSSEL COM SETAS
-   - Cria setas e move o trilho (row-rail)
 ========================= */
 function videoCardHTML(ex) {
   const playable = !!(ex.youtube && youtubeToEmbed(ex.youtube));
@@ -826,14 +849,12 @@ function buildRow(title, railId, itemsHTML) {
 }
 
 function bindCarouselArrows(container) {
-  // seta esquerda/direita: scroll no trilho
   container.querySelectorAll(".carousel-btn").forEach(btn => {
     btn.onclick = () => {
       const railId = btn.dataset.rail;
       const rail = container.querySelector(`#${CSS.escape(railId)}`);
       if (!rail) return;
 
-      // quanto anda: ~85% do trilho visível
       const step = Math.max(rail.clientWidth * 0.85, 220);
 
       rail.scrollBy({
@@ -865,7 +886,6 @@ function renderStudentVideos() {
 
   let html = "";
 
-  // “Comece por aqui”: prioriza os que têm vídeo válido
   const start = list
     .filter(ex => !!youtubeToEmbed(ex.youtube || ""))
     .slice(0, 12)
@@ -875,7 +895,6 @@ function renderStudentVideos() {
     html += buildRow("Comece por aqui", "rail_start", start);
   }
 
-  // carrosséis por grupo (mesmo sem vídeo)
   groups.forEach((g, idx) => {
     const arr = (byGroup[g] || []).map(videoCardHTML);
     if (arr.length) html += buildRow(g, `rail_${idx}`, arr);
@@ -885,10 +904,8 @@ function renderStudentVideos() {
 
   grid.innerHTML = html;
 
-  // bind setas
   bindCarouselArrows(grid);
 
-  // clique nos cards abre modal (se tiver URL)
   grid.querySelectorAll("[data-play]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.dataset.play;
@@ -1000,11 +1017,27 @@ async function init() {
   fillGroups();
   fillPlanDays();
 
+  // >>> FIX: sempre começa no LOGIN e garante que NÃO reaproveita sessão
+  safeGet("#loginScreen")?.classList.remove("hidden");
+  safeGet("#app")?.classList.add("hidden");
+  allowAutoEnter = false;
+  try { await signOut(auth); } catch (e) { /* ignora */ }
+
   let unsubExercises = null;
 
   onAuthStateChanged(auth, async (u) => {
     currentUser = u;
     setLoginMsg("");
+
+    // >>> FIX: se NÃO foi clique de login, não deixa entrar no painel
+    if (u && !allowAutoEnter) {
+      try { await signOut(auth); } catch (e) { /* ignora */ }
+      safeGet("#loginScreen")?.classList.remove("hidden");
+      safeGet("#app")?.classList.add("hidden");
+      currentRole = null;
+      if (unsubExercises) { unsubExercises(); unsubExercises = null; }
+      return;
+    }
 
     if (!u) {
       safeGet("#loginScreen")?.classList.remove("hidden");
@@ -1061,3 +1094,4 @@ async function init() {
 }
 
 init();
+
