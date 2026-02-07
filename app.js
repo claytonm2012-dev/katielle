@@ -125,7 +125,7 @@ function youtubeToEmbed(url) {
   // remove espaços
   u = u.replace(/\s+/g, "");
 
-  // já é embed
+  // embed já pronto
   if (u.includes("youtube.com/embed/")) return u;
 
   // shorts
@@ -328,7 +328,6 @@ async function getMyRole(uid) {
 
 /* =========================
    EXERCISES (SEM orderBy)
-   -> evita erro de índice e evita “sumiu”
 ========================= */
 function listenExercises() {
   return onSnapshot(exercisesCol, (snap) => {
@@ -865,6 +864,10 @@ function bindCarouselArrows(container) {
   });
 }
 
+/* =========================================================
+   ✅ ALTERAÇÃO AQUI:
+   "Comece por aqui" vira BLOCO por grupo (não mix)
+========================================================= */
 function renderStudentVideos() {
   const grid = safeGet("#studentVideosGrid");
   if (!grid) return;
@@ -886,16 +889,15 @@ function renderStudentVideos() {
 
   let html = "";
 
-  const start = list
-    .filter(ex => !!youtubeToEmbed(ex.youtube || ""))
-    .slice(0, 12)
-    .map(videoCardHTML);
-
-  if (start.length) {
-    html += buildRow("Comece por aqui", "rail_start", start);
+  // ✅ "Comece por aqui" como BLOCO separado (somente itens do grupo)
+  const startArr = (byGroup["Comece por aqui"] || []).map(videoCardHTML);
+  if (startArr.length) {
+    html += buildRow("Comece por aqui", "rail_start", startArr);
   }
 
+  // ✅ carrosséis por grupo (sem duplicar "Comece por aqui")
   groups.forEach((g, idx) => {
+    if (g === "Comece por aqui") return;
     const arr = (byGroup[g] || []).map(videoCardHTML);
     if (arr.length) html += buildRow(g, `rail_${idx}`, arr);
   });
@@ -904,8 +906,10 @@ function renderStudentVideos() {
 
   grid.innerHTML = html;
 
+  // bind setas
   bindCarouselArrows(grid);
 
+  // clique nos cards abre modal (se tiver URL)
   grid.querySelectorAll("[data-play]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.dataset.play;
