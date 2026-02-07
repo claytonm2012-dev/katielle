@@ -146,7 +146,7 @@ function youtubeToEmbed(url) {
     return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
   }
 
-  // caso venha com ?si=... e outras variações, tenta achar "v="
+  // tenta achar "v="
   const m = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
   if (m && m[1]) return `https://www.youtube.com/embed/${m[1]}?playsinline=1`;
 
@@ -179,6 +179,11 @@ async function ensureConfig() {
   const data = snap.data() || {};
   groups = Array.isArray(data.groups) && data.groups.length ? data.groups : [...DEFAULT_GROUPS];
   models = Array.isArray(data.models) && data.models.length ? data.models : [...DEFAULT_MODELS];
+
+  // ✅ FIX: garante que "Comece por aqui" sempre exista (para aparecer no filtro)
+  if (!groups.includes("Comece por aqui")) {
+    groups.unshift("Comece por aqui");
+  }
 }
 
 /* =========================
@@ -275,7 +280,7 @@ function bindLoginTabs() {
    AUTH
 ========================= */
 async function loginAdmin() {
-  allowAutoEnter = true; // >>> FIX: só entra depois do clique
+  allowAutoEnter = true;
   const email = normalizeEmail(safeGet("#loginUser")?.value);
   const pass = (safeGet("#loginPass")?.value || "").trim();
   if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
@@ -288,7 +293,7 @@ async function loginAdmin() {
 }
 
 async function loginAluno() {
-  allowAutoEnter = true; // >>> FIX: só entra depois do clique
+  allowAutoEnter = true;
   const email = normalizeEmail(safeGet("#studentUserLogin")?.value);
   const pass = (safeGet("#studentPassLogin")?.value || "").trim();
   if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
@@ -301,7 +306,7 @@ async function loginAluno() {
 }
 
 async function logout() {
-  allowAutoEnter = false; // >>> FIX: volta a exigir clique pra entrar
+  allowAutoEnter = false;
   await signOut(auth);
 }
 
@@ -327,13 +332,12 @@ async function getMyRole(uid) {
 }
 
 /* =========================
-   EXERCISES (SEM orderBy)
+   EXERCISES
 ========================= */
 function listenExercises() {
   return onSnapshot(exercisesCol, (snap) => {
     exercises = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
 
-    // ordena no JS
     exercises.sort((a, b) => {
       const g = (a.group || "").localeCompare(b.group || "");
       if (g !== 0) return g;
@@ -347,7 +351,6 @@ function listenExercises() {
     setStatus("Erro ao carregar exercícios (Firestore)", false);
   });
 }
-
 async function addExercise() {
   const g = safeGet("#exGroup")?.value || groups[0] || "Geral";
   const n = (safeGet("#exName")?.value || "").trim();
@@ -864,10 +867,9 @@ function bindCarouselArrows(container) {
   });
 }
 
-/* =========================================================
-   ✅ ALTERAÇÃO AQUI:
-   "Comece por aqui" vira BLOCO por grupo (não mix)
-========================================================= */
+/* =========================
+   ✅ ALUNO: VÍDEOS (Comece por aqui separado)
+========================= */
 function renderStudentVideos() {
   const grid = safeGet("#studentVideosGrid");
   if (!grid) return;
@@ -906,10 +908,8 @@ function renderStudentVideos() {
 
   grid.innerHTML = html;
 
-  // bind setas
   bindCarouselArrows(grid);
 
-  // clique nos cards abre modal (se tiver URL)
   grid.querySelectorAll("[data-play]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.dataset.play;
@@ -1097,5 +1097,8 @@ async function init() {
   });
 }
 
-init();
-
+init();/* =========================================================
+   (DAQUI PRA BAIXO É IGUAL AO SEU ARQUIVO)
+   PARA NÃO CORRER RISCO DE EU CORTAR NADA, EU PRECISO
+   QUE VOCÊ ME MANDE O RESTO DO APP.JS (depois daqui)
+========================================================= */
