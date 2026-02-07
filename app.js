@@ -3,6 +3,11 @@
    - Auth + Firestore
    - Admin: alunos, exercícios, treinos
    - Aluno: carrossel Netflix + setas + modal vídeo
+   - FIXES:
+     1) NÃO entrar logado automaticamente (sempre começa no login)
+     2) Aceita YouTube Shorts
+     3) "Comece por aqui" aparece no filtro e fica como bloco separado
+     4) Thumb (imagem) do vídeo aparece nos cards (inclui Shorts)
 
    IMPORTANTE (index.html):
    <script type="module" src="app.js"></script>
@@ -77,7 +82,7 @@ let exercises = []; // {id, group, name, youtube}
 let currentUser = null;
 let currentRole = null;
 
-// >>> FIX: evita abrir logado automaticamente ao carregar a página
+// FIX: evita abrir logado automaticamente ao carregar a página.
 // Só libera a troca de telas depois que o usuário clicou em "Entrar".
 let allowAutoEnter = false;
 
@@ -121,8 +126,6 @@ function normalizeEmail(userLike) {
 function youtubeToEmbed(url) {
   if (!url) return "";
   let u = String(url).trim();
-
-  // remove espaços
   u = u.replace(/\s+/g, "");
 
   // embed já pronto
@@ -146,11 +149,52 @@ function youtubeToEmbed(url) {
     return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
   }
 
-  // tenta achar "v="
+  // fallback: tenta achar "v="
   const m = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
   if (m && m[1]) return `https://www.youtube.com/embed/${m[1]}?playsinline=1`;
 
   return "";
+}
+
+/* =========================================================
+   YOUTUBE THUMB (imagem do vídeo)
+   - Funciona com watch, youtu.be, shorts e embed
+========================================================= */
+function youtubeGetId(url) {
+  if (!url) return "";
+  let u = String(url).trim().replace(/\s+/g, "");
+
+  // shorts
+  if (u.includes("youtube.com/shorts/")) {
+    return u.split("youtube.com/shorts/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0] || "";
+  }
+
+  // youtu.be
+  if (u.includes("youtu.be/")) {
+    return u.split("youtu.be/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0] || "";
+  }
+
+  // watch?v=
+  if (u.includes("watch?v=")) {
+    return u.split("watch?v=")[1]?.split("&")[0] || "";
+  }
+
+  // embed
+  if (u.includes("youtube.com/embed/")) {
+    return u.split("youtube.com/embed/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0] || "";
+  }
+
+  // fallback
+  const m = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+  if (m && m[1]) return m[1];
+
+  return "";
+}
+
+function youtubeThumb(url) {
+  const id = youtubeGetId(url);
+  if (!id) return "";
+  return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 }
 
 /* =========================
@@ -176,14 +220,13 @@ async function ensureConfig() {
     models = [...DEFAULT_MODELS];
     return;
   }
+
   const data = snap.data() || {};
   groups = Array.isArray(data.groups) && data.groups.length ? data.groups : [...DEFAULT_GROUPS];
   models = Array.isArray(data.models) && data.models.length ? data.models : [...DEFAULT_MODELS];
 
-  // ✅ FIX: garante que "Comece por aqui" sempre exista (para aparecer no filtro)
-  if (!groups.includes("Comece por aqui")) {
-    groups.unshift("Comece por aqui");
-  }
+  // FIX: garante que "Comece por aqui" sempre exista (para aparecer no filtro)
+  if (!groups.includes("Comece por aqui")) groups.unshift("Comece por aqui");
 }
 
 /* =========================
@@ -332,7 +375,7 @@ async function getMyRole(uid) {
 }
 
 /* =========================
-   EXERCISES
+   EXERCISES (SEM orderBy)
 ========================= */
 function listenExercises() {
   return onSnapshot(exercisesCol, (snap) => {
@@ -351,6 +394,7 @@ function listenExercises() {
     setStatus("Erro ao carregar exercícios (Firestore)", false);
   });
 }
+
 async function addExercise() {
   const g = safeGet("#exGroup")?.value || groups[0] || "Geral";
   const n = (safeGet("#exName")?.value || "").trim();
@@ -816,20 +860,28 @@ function renderStudentWelcome(name) {
 }
 
 /* =========================
-   ALUNO: CARROSSEL COM SETAS
+   ALUNO: CARDS (COM THUMB)
 ========================= */
 function videoCardHTML(ex) {
   const playable = !!(ex.youtube && youtubeToEmbed(ex.youtube));
+  const thumb = playable ? youtubeThumb(ex.youtube) : "";
+
   const badge = playable
     ? `<span class="badge-ok">PLAY</span>`
     : `<span class="badge-miss">SEM VÍDEO</span>`;
 
+  // OBS: o CSS precisa ter .vcard-thumb e .thumb-no (te mando abaixo)
   return `
     <button class="vcard" type="button" data-play="${ex.id}">
+      <div class="vcard-thumb" style="background-image:url('${thumb}');">
+        ${!playable ? `<div class="thumb-no">SEM VÍDEO</div>` : ``}
+      </div>
+
       <div class="vcard-top">
         <div class="vcard-name">${ex.name || ""}</div>
         <div class="vcard-group">${ex.group || ""}</div>
       </div>
+
       <div class="vcard-badge">${badge}</div>
     </button>
   `;
@@ -868,7 +920,8 @@ function bindCarouselArrows(container) {
 }
 
 /* =========================
-   ✅ ALUNO: VÍDEOS (Comece por aqui separado)
+   ALUNO: VÍDEOS
+   - "Comece por aqui" como bloco separado (sem duplicar)
 ========================= */
 function renderStudentVideos() {
   const grid = safeGet("#studentVideosGrid");
@@ -891,13 +944,11 @@ function renderStudentVideos() {
 
   let html = "";
 
-  // ✅ "Comece por aqui" como BLOCO separado (somente itens do grupo)
+  // ✅ bloco separado: apenas itens do grupo "Comece por aqui"
   const startArr = (byGroup["Comece por aqui"] || []).map(videoCardHTML);
-  if (startArr.length) {
-    html += buildRow("Comece por aqui", "rail_start", startArr);
-  }
+  if (startArr.length) html += buildRow("Comece por aqui", "rail_start", startArr);
 
-  // ✅ carrosséis por grupo (sem duplicar "Comece por aqui")
+  // ✅ carrosséis por grupo (sem duplicar o Comece por aqui)
   groups.forEach((g, idx) => {
     if (g === "Comece por aqui") return;
     const arr = (byGroup[g] || []).map(videoCardHTML);
@@ -1021,7 +1072,7 @@ async function init() {
   fillGroups();
   fillPlanDays();
 
-  // >>> FIX: sempre começa no LOGIN e garante que NÃO reaproveita sessão
+  // FIX: sempre começa no LOGIN e NÃO reaproveita sessão
   safeGet("#loginScreen")?.classList.remove("hidden");
   safeGet("#app")?.classList.add("hidden");
   allowAutoEnter = false;
@@ -1033,7 +1084,7 @@ async function init() {
     currentUser = u;
     setLoginMsg("");
 
-    // >>> FIX: se NÃO foi clique de login, não deixa entrar no painel
+    // FIX: se NÃO foi clique de login, não entra no painel
     if (u && !allowAutoEnter) {
       try { await signOut(auth); } catch (e) { /* ignora */ }
       safeGet("#loginScreen")?.classList.remove("hidden");
@@ -1047,7 +1098,6 @@ async function init() {
       safeGet("#loginScreen")?.classList.remove("hidden");
       safeGet("#app")?.classList.add("hidden");
       currentRole = null;
-
       if (unsubExercises) { unsubExercises(); unsubExercises = null; }
       return;
     }
@@ -1097,8 +1147,32 @@ async function init() {
   });
 }
 
-init();/* =========================================================
-   (DAQUI PRA BAIXO É IGUAL AO SEU ARQUIVO)
-   PARA NÃO CORRER RISCO DE EU CORTAR NADA, EU PRECISO
-   QUE VOCÊ ME MANDE O RESTO DO APP.JS (depois daqui)
+init();
+
+/* =========================================================
+  ⚠️ IMPORTANTE (CSS)
+  Para a thumb aparecer bonitinha, adicione no styles.css:
+
+  .vcard-thumb{
+    width: 100%;
+    height: 140px;
+    border-radius: 16px;
+    background-size: cover;
+    background-position: center;
+    background-color: #111;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .thumb-no{
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    color: #ccc;
+    background: rgba(0,0,0,0.6);
+  }
 ========================================================= */
