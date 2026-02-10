@@ -3,10 +3,15 @@
    - Auth + Firestore
    - Admin: alunos, exercícios, treinos
    - Aluno: carrossel Netflix + setas + modal vídeo
-   - ATUALIZAÇÕES (as 2 que você pediu):
-     1) "Entrar" mais rápido (sensação): mostra "Entrando...", desabilita botão e carrega exercícios 800ms depois
-     2) "Não estava entrando": agora mostra o erro REAL do Firebase (e loga no console)
-   - Mantém sessão: só sai quando clicar em Sair
+
+   ✅ ATUALIZAÇÕES (o que você pediu):
+   1) Login “rápido” (não trava a tela): o painel abre primeiro e os dados carregam depois
+   2) “Não estava entrando”: agora mostra o erro REAL do Firebase no login
+   3) Mantém logado: só sai quando clicar em Sair
+   4) Persistência configurada 1 vez (melhor no iPhone/Safari)
+
+   IMPORTANTE (index.html):
+   <script type="module" src="app.js"></script>
 ========================================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
@@ -50,6 +55,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// ✅ Persistência configurada 1 vez (evita travar no clique do login)
+const persistenceReady = Promise.race([
+  setPersistence(auth, browserLocalPersistence),
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Timeout na persistência (cookies/armazenamento do navegador)")), 6000)
+  )
+]).catch((e) => {
+  console.error("PERSISTENCE ERROR:", e);
+  // segue mesmo assim: pode logar, só pode não “lembrar” em alguns navegadores com bloqueio
+});
 
 // Auth secundário: criar aluno sem deslogar admin
 const secondaryApp = initializeApp(firebaseConfig, "secondary");
@@ -140,9 +156,6 @@ function youtubeToEmbed(url) {
   return "";
 }
 
-/* =========================================================
-   YOUTUBE THUMB
-========================================================= */
 function youtubeGetId(url) {
   if (!url) return "";
   let u = String(url).trim().replace(/\s+/g, "");
@@ -294,8 +307,7 @@ function bindLoginTabs() {
 }
 
 /* =========================
-   AUTH
-   (Atualização 1 + 2 aqui)
+   AUTH (não trava + mostra erro real)
 ========================= */
 async function loginAdmin() {
   const btn = safeGet("#btnLoginAdmin");
@@ -312,9 +324,8 @@ async function loginAdmin() {
   }
 
   try {
-    await setPersistence(auth, browserLocalPersistence);
+    await persistenceReady; // ✅ persistência já preparada
     await signInWithEmailAndPassword(auth, email, pass);
-    // sucesso: o onAuthStateChanged troca as telas
   } catch (e) {
     console.error("LOGIN ADMIN ERROR:", e);
     setLoginMsg(e?.message || "Erro no login");
@@ -338,7 +349,7 @@ async function loginAluno() {
   }
 
   try {
-    await setPersistence(auth, browserLocalPersistence);
+    await persistenceReady; // ✅ persistência já preparada
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
     console.error("LOGIN ALUNO ERROR:", e);
@@ -1067,7 +1078,7 @@ async function init() {
   fillGroups();
   fillPlanDays();
 
-  // ✅ NÃO desloga ao carregar. Se já tiver sessão, entra automático.
+  // ✅ Começa mostrando login até o Auth decidir
   safeGet("#loginScreen")?.classList.remove("hidden");
   safeGet("#app")?.classList.add("hidden");
 
@@ -1087,20 +1098,29 @@ async function init() {
       return;
     }
 
-    await ensureUserDocOnFirstLogin(u);
-    currentRole = (await getMyRole(u.uid)) || "student";
-    console.log("ROLE:", currentRole);
-
+    // ✅ ENTRA NO PAINEL PRIMEIRO (sem travar em Firestore)
     safeGet("#loginScreen")?.classList.add("hidden");
     safeGet("#app")?.classList.remove("hidden");
+    setStatus("Carregando...", true);
 
-    // ✅ Atualização 1: não trava a “entrada” esperando Firestore.
-    // Carrega a lista de exercícios um pouquinho depois.
+    // ✅ Carrega exercícios um pouco depois (não “trava” a entrada)
     if (!unsubExercises) {
       setTimeout(() => {
         if (!unsubExercises && currentUser) unsubExercises = listenExercises();
       }, 800);
     }
+
+    // Firestore em background
+    ensureUserDocOnFirstLogin(u).catch(console.error);
+
+    // Role (precisa pra menus)
+    try {
+      currentRole = (await getMyRole(u.uid)) || "student";
+    } catch (e) {
+      console.error("ROLE ERROR:", e);
+      currentRole = "student";
+    }
+    console.log("ROLE:", currentRole);
 
     if (currentRole === "admin") {
       safeGet("#menuAluno")?.classList.add("hidden");
@@ -1108,33 +1128,38 @@ async function init() {
       safeGet("#roleSub") && (safeGet("#roleSub").textContent = "Administrador(a)");
       safeGet("#welcomeLine") && (safeGet("#welcomeLine").textContent = "Bem-vindo(a), Administrador(a).");
 
-      await loadStudentsForSelect();
-      fillPlanExercises();
-
       showView("dashboard");
       setStatus("OK", true);
 
-      await renderStudentsAsync();
-      renderExercisesAdmin();
+      // ✅ carrega dados sem travar
+      loadStudentsForSelect().catch(console.error);
+      renderStudentsAsync().catch(console.error);
+      Promise.resolve().then(() => renderExercisesAdmin()).catch(console.error);
+      Promise.resolve().then(() => fillPlanExercises()).catch(console.error);
+
     } else {
       safeGet("#menuAdmin")?.classList.add("hidden");
       safeGet("#menuAluno")?.classList.remove("hidden");
       safeGet("#roleSub") && (safeGet("#roleSub").textContent = "Aluno");
 
-      const snap = await getDoc(userRef(u.uid));
-      const me = snap.exists() ? (snap.data() || {}) : {};
-      safeGet("#welcomeLine") && (safeGet("#welcomeLine").textContent = me.name ? `Olá, ${me.name}.` : "Olá!");
-      renderStudentWelcome(me.name);
-
-      if (me.expiresAt && daysLeft(me.expiresAt) < 0) {
-        alert("Seu plano está vencido. Fale com a administradora.");
-        await logout();
-        return;
-      }
-
       showView("videos");
       setStatus("OK", true);
+
+      // ✅ mostra já alguma coisa
+      renderStudentWelcome("Aluno(a)");
       renderStudentVideos();
+
+      // ✅ busca dados do aluno sem travar
+      getDoc(userRef(u.uid)).then((snap) => {
+        const me = snap.exists() ? (snap.data() || {}) : {};
+        safeGet("#welcomeLine") && (safeGet("#welcomeLine").textContent = me.name ? `Olá, ${me.name}.` : "Olá!");
+        renderStudentWelcome(me.name);
+
+        if (me.expiresAt && daysLeft(me.expiresAt) < 0) {
+          alert("Seu plano está vencido. Fale com a administradora.");
+          logout();
+        }
+      }).catch(console.error);
     }
   });
 }
