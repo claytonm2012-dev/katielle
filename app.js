@@ -4,7 +4,7 @@
    - Admin: alunos, exercícios, treinos
    - Aluno: carrossel Netflix + setas + modal vídeo
    - FIXES:
-     1) NÃO entrar logado automaticamente (sempre começa no login)
+     1) NÃO entrar logado automaticamente (sempre começa no login)  ❌ (REMOVIDO para manter login)
      2) Aceita YouTube Shorts
      3) "Comece por aqui" aparece no filtro e fica como bloco separado
      4) Thumb (imagem) do vídeo aparece nos cards (inclui Shorts)
@@ -19,7 +19,9 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  setPersistence,
+  browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
 import {
@@ -82,8 +84,7 @@ let exercises = []; // {id, group, name, youtube}
 let currentUser = null;
 let currentRole = null;
 
-// FIX: evita abrir logado automaticamente ao carregar a página.
-// Só libera a troca de telas depois que o usuário clicou em "Entrar".
+// Mantido por compatibilidade, mas não força mais deslogar
 let allowAutoEnter = false;
 
 /* =========================
@@ -117,39 +118,29 @@ function normalizeEmail(userLike) {
 
 /* =========================================================
    YOUTUBE (COM SHORTS)
-   Aceita:
-   - https://www.youtube.com/watch?v=ID
-   - https://youtu.be/ID
-   - https://www.youtube.com/shorts/ID
-   - https://www.youtube.com/embed/ID
 ========================================================= */
 function youtubeToEmbed(url) {
   if (!url) return "";
   let u = String(url).trim();
   u = u.replace(/\s+/g, "");
 
-  // embed já pronto
   if (u.includes("youtube.com/embed/")) return u;
 
-  // shorts
   if (u.includes("youtube.com/shorts/")) {
     const id = u.split("youtube.com/shorts/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0];
     return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
   }
 
-  // youtu.be/ID
   if (u.includes("youtu.be/")) {
     const id = u.split("youtu.be/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0];
     return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
   }
 
-  // watch?v=ID
   if (u.includes("watch?v=")) {
     const id = u.split("watch?v=")[1]?.split("&")[0];
     return id ? `https://www.youtube.com/embed/${id}?playsinline=1` : "";
   }
 
-  // fallback: tenta achar "v="
   const m = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
   if (m && m[1]) return `https://www.youtube.com/embed/${m[1]}?playsinline=1`;
 
@@ -157,34 +148,25 @@ function youtubeToEmbed(url) {
 }
 
 /* =========================================================
-   YOUTUBE THUMB (imagem do vídeo)
-   - Funciona com watch, youtu.be, shorts e embed
+   YOUTUBE THUMB
 ========================================================= */
 function youtubeGetId(url) {
   if (!url) return "";
   let u = String(url).trim().replace(/\s+/g, "");
 
-  // shorts
   if (u.includes("youtube.com/shorts/")) {
     return u.split("youtube.com/shorts/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0] || "";
   }
-
-  // youtu.be
   if (u.includes("youtu.be/")) {
     return u.split("youtu.be/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0] || "";
   }
-
-  // watch?v=
   if (u.includes("watch?v=")) {
     return u.split("watch?v=")[1]?.split("&")[0] || "";
   }
-
-  // embed
   if (u.includes("youtube.com/embed/")) {
     return u.split("youtube.com/embed/")[1]?.split("?")[0]?.split("&")[0]?.split("/")[0] || "";
   }
 
-  // fallback
   const m = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
   if (m && m[1]) return m[1];
 
@@ -225,7 +207,6 @@ async function ensureConfig() {
   groups = Array.isArray(data.groups) && data.groups.length ? data.groups : [...DEFAULT_GROUPS];
   models = Array.isArray(data.models) && data.models.length ? data.models : [...DEFAULT_MODELS];
 
-  // FIX: garante que "Comece por aqui" sempre exista (para aparecer no filtro)
   if (!groups.includes("Comece por aqui")) groups.unshift("Comece por aqui");
 }
 
@@ -328,6 +309,9 @@ async function loginAdmin() {
   const pass = (safeGet("#loginPass")?.value || "").trim();
   if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
   try {
+    // ✅ mantém logado até o usuário sair
+    await setPersistence(auth, browserLocalPersistence);
+
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
     console.error(e);
@@ -341,6 +325,9 @@ async function loginAluno() {
   const pass = (safeGet("#studentPassLogin")?.value || "").trim();
   if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
   try {
+    // ✅ mantém logado até o usuário sair
+    await setPersistence(auth, browserLocalPersistence);
+
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
     console.error(e);
@@ -870,7 +857,6 @@ function videoCardHTML(ex) {
     ? `<span class="badge-ok">PLAY</span>`
     : `<span class="badge-miss">SEM VÍDEO</span>`;
 
-  // OBS: o CSS precisa ter .vcard-thumb e .thumb-no (te mando abaixo)
   return `
     <button class="vcard" type="button" data-play="${ex.id}">
       <div class="vcard-thumb" style="background-image:url('${thumb}');">
@@ -921,7 +907,6 @@ function bindCarouselArrows(container) {
 
 /* =========================
    ALUNO: VÍDEOS
-   - "Comece por aqui" como bloco separado (sem duplicar)
 ========================= */
 function renderStudentVideos() {
   const grid = safeGet("#studentVideosGrid");
@@ -944,11 +929,9 @@ function renderStudentVideos() {
 
   let html = "";
 
-  // ✅ bloco separado: apenas itens do grupo "Comece por aqui"
   const startArr = (byGroup["Comece por aqui"] || []).map(videoCardHTML);
   if (startArr.length) html += buildRow("Comece por aqui", "rail_start", startArr);
 
-  // ✅ carrosséis por grupo (sem duplicar o Comece por aqui)
   groups.forEach((g, idx) => {
     if (g === "Comece por aqui") return;
     const arr = (byGroup[g] || []).map(videoCardHTML);
@@ -1072,27 +1055,15 @@ async function init() {
   fillGroups();
   fillPlanDays();
 
-  // FIX: sempre começa no LOGIN e NÃO reaproveita sessão
+  // ✅ NÃO desloga ao carregar. Se já tiver sessão, entra automático.
   safeGet("#loginScreen")?.classList.remove("hidden");
   safeGet("#app")?.classList.add("hidden");
-  allowAutoEnter = false;
-  try { await signOut(auth); } catch (e) { /* ignora */ }
 
   let unsubExercises = null;
 
   onAuthStateChanged(auth, async (u) => {
     currentUser = u;
     setLoginMsg("");
-
-    // FIX: se NÃO foi clique de login, não entra no painel
-    if (u && !allowAutoEnter) {
-      try { await signOut(auth); } catch (e) { /* ignora */ }
-      safeGet("#loginScreen")?.classList.remove("hidden");
-      safeGet("#app")?.classList.add("hidden");
-      currentRole = null;
-      if (unsubExercises) { unsubExercises(); unsubExercises = null; }
-      return;
-    }
 
     if (!u) {
       safeGet("#loginScreen")?.classList.remove("hidden");
