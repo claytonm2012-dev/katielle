@@ -3,14 +3,10 @@
    - Auth + Firestore
    - Admin: alunos, exercícios, treinos
    - Aluno: carrossel Netflix + setas + modal vídeo
-   - FIXES:
-     1) NÃO entrar logado automaticamente (sempre começa no login)  ❌ (REMOVIDO para manter login)
-     2) Aceita YouTube Shorts
-     3) "Comece por aqui" aparece no filtro e fica como bloco separado
-     4) Thumb (imagem) do vídeo aparece nos cards (inclui Shorts)
-
-   IMPORTANTE (index.html):
-   <script type="module" src="app.js"></script>
+   - ATUALIZAÇÕES (as 2 que você pediu):
+     1) "Entrar" mais rápido (sensação): mostra "Entrando...", desabilita botão e carrega exercícios 800ms depois
+     2) "Não estava entrando": agora mostra o erro REAL do Firebase (e loga no console)
+   - Mantém sessão: só sai quando clicar em Sair
 ========================================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
@@ -83,9 +79,6 @@ let models = [...DEFAULT_MODELS];
 let exercises = []; // {id, group, name, youtube}
 let currentUser = null;
 let currentRole = null;
-
-// Mantido por compatibilidade, mas não força mais deslogar
-let allowAutoEnter = false;
 
 /* =========================
    HELPERS
@@ -302,41 +295,60 @@ function bindLoginTabs() {
 
 /* =========================
    AUTH
+   (Atualização 1 + 2 aqui)
 ========================= */
 async function loginAdmin() {
-  allowAutoEnter = true;
+  const btn = safeGet("#btnLoginAdmin");
+  if (btn) btn.disabled = true;
+
+  setLoginMsg("Entrando...");
+
   const email = normalizeEmail(safeGet("#loginUser")?.value);
   const pass = (safeGet("#loginPass")?.value || "").trim();
-  if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
-  try {
-    // ✅ mantém logado até o usuário sair
-    await setPersistence(auth, browserLocalPersistence);
+  if (!email || !pass) {
+    setLoginMsg("Preencha usuário e senha");
+    if (btn) btn.disabled = false;
+    return;
+  }
 
+  try {
+    await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, email, pass);
+    // sucesso: o onAuthStateChanged troca as telas
   } catch (e) {
-    console.error(e);
-    setLoginMsg("Usuário ou senha inválidos");
+    console.error("LOGIN ADMIN ERROR:", e);
+    setLoginMsg(e?.message || "Erro no login");
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
 async function loginAluno() {
-  allowAutoEnter = true;
+  const btn = safeGet("#btnLoginAluno");
+  if (btn) btn.disabled = true;
+
+  setLoginMsg("Entrando...");
+
   const email = normalizeEmail(safeGet("#studentUserLogin")?.value);
   const pass = (safeGet("#studentPassLogin")?.value || "").trim();
-  if (!email || !pass) return setLoginMsg("Preencha usuário e senha");
-  try {
-    // ✅ mantém logado até o usuário sair
-    await setPersistence(auth, browserLocalPersistence);
+  if (!email || !pass) {
+    setLoginMsg("Preencha usuário e senha");
+    if (btn) btn.disabled = false;
+    return;
+  }
 
+  try {
+    await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
-    console.error(e);
-    setLoginMsg("Usuário ou senha inválidos");
+    console.error("LOGIN ALUNO ERROR:", e);
+    setLoginMsg(e?.message || "Erro no login");
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
 async function logout() {
-  allowAutoEnter = false;
   await signOut(auth);
 }
 
@@ -1062,6 +1074,8 @@ async function init() {
   let unsubExercises = null;
 
   onAuthStateChanged(auth, async (u) => {
+    console.log("AUTH STATE:", u ? u.email : "SEM USUÁRIO");
+
     currentUser = u;
     setLoginMsg("");
 
@@ -1075,11 +1089,18 @@ async function init() {
 
     await ensureUserDocOnFirstLogin(u);
     currentRole = (await getMyRole(u.uid)) || "student";
+    console.log("ROLE:", currentRole);
 
     safeGet("#loginScreen")?.classList.add("hidden");
     safeGet("#app")?.classList.remove("hidden");
 
-    if (!unsubExercises) unsubExercises = listenExercises();
+    // ✅ Atualização 1: não trava a “entrada” esperando Firestore.
+    // Carrega a lista de exercícios um pouquinho depois.
+    if (!unsubExercises) {
+      setTimeout(() => {
+        if (!unsubExercises && currentUser) unsubExercises = listenExercises();
+      }, 800);
+    }
 
     if (currentRole === "admin") {
       safeGet("#menuAluno")?.classList.add("hidden");
