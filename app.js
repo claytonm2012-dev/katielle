@@ -4,11 +4,14 @@
    - Admin: alunos, exercícios, treinos
    - Aluno: carrossel Netflix + setas + modal vídeo
 
-   ✅ ATUALIZAÇÕES (o que você pediu):
+   ✅ ATUALIZAÇÕES:
    1) Login “rápido” (não trava a tela): o painel abre primeiro e os dados carregam depois
-   2) “Não estava entrando”: agora mostra o erro REAL do Firebase no login
+   2) Mostra o erro REAL do Firebase no login
    3) Mantém logado: só sai quando clicar em Sair
-   4) Persistência configurada 1 vez (melhor no iPhone/Safari)
+   4) Persistência configurada 1 vez
+   5) TESTE GRÁTIS de 3 dias para aluno
+   6) Bloqueio automático ao vencer
+   7) Renovação muda teste para plano pago
 
    IMPORTANTE (index.html):
    <script type="module" src="app.js"></script>
@@ -56,7 +59,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ✅ Persistência configurada 1 vez (evita travar no clique do login)
+// Persistência configurada 1 vez
 const persistenceReady = Promise.race([
   setPersistence(auth, browserLocalPersistence),
   new Promise((_, reject) =>
@@ -64,7 +67,6 @@ const persistenceReady = Promise.race([
   )
 ]).catch((e) => {
   console.error("PERSISTENCE ERROR:", e);
-  // segue mesmo assim: pode logar, só pode não “lembrar” em alguns navegadores com bloqueio
 });
 
 // Auth secundário: criar aluno sem deslogar admin
@@ -92,7 +94,7 @@ const DEFAULT_MODELS = ["A", "B", "C", "D"];
 ========================= */
 let groups = [...DEFAULT_GROUPS];
 let models = [...DEFAULT_MODELS];
-let exercises = []; // {id, group, name, youtube}
+let exercises = [];
 let currentUser = null;
 let currentRole = null;
 
@@ -307,7 +309,7 @@ function bindLoginTabs() {
 }
 
 /* =========================
-   AUTH (não trava + mostra erro real)
+   AUTH
 ========================= */
 async function loginAdmin() {
   const btn = safeGet("#btnLoginAdmin");
@@ -324,7 +326,7 @@ async function loginAdmin() {
   }
 
   try {
-    await persistenceReady; // ✅ persistência já preparada
+    await persistenceReady;
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
     console.error("LOGIN ADMIN ERROR:", e);
@@ -349,7 +351,7 @@ async function loginAluno() {
   }
 
   try {
-    await persistenceReady; // ✅ persistência já preparada
+    await persistenceReady;
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
     console.error("LOGIN ALUNO ERROR:", e);
@@ -374,6 +376,7 @@ async function ensureUserDocOnFirstLogin(u) {
   await setDoc(ref, {
     role: "student",
     name: u.email || "Aluno",
+    accessType: "paid",
     createdAt: serverTimestamp()
   });
 }
@@ -385,7 +388,7 @@ async function getMyRole(uid) {
 }
 
 /* =========================
-   EXERCISES (SEM orderBy)
+   EXERCISES
 ========================= */
 function listenExercises() {
   return onSnapshot(exercisesCol, (snap) => {
@@ -399,6 +402,7 @@ function listenExercises() {
 
     if (currentRole === "admin") renderExercisesAdmin();
     if (currentRole === "student") renderStudentVideos();
+    updateDashboard();
   }, (err) => {
     console.error("listenExercises:", err);
     setStatus("Erro ao carregar exercícios (Firestore)", false);
@@ -456,7 +460,7 @@ async function deleteExercise(id) {
 }
 
 /* =========================
-   BULK (lote)
+   BULK
 ========================= */
 function bindBulk() {
   const toggle = safeGet("#btnBulkToggle");
@@ -587,6 +591,12 @@ function addMonthsISO(months) {
   return d.toISOString();
 }
 
+function addDaysISO(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + Number(days));
+  return d.toISOString();
+}
+
 function daysLeft(iso) {
   if (!iso) return 999999;
   return Math.ceil((new Date(iso) - new Date()) / 86400000);
@@ -597,7 +607,12 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString("pt-BR");
 }
 
-async function createStudent() {
+function getAccessLabel(user) {
+  if (user?.accessType === "trial") return "Teste grátis";
+  return "Plano pago";
+}
+
+async function createStudent(isTrial = false) {
   const name = (safeGet("#studentName")?.value || "").trim();
   const username = (safeGet("#studentUser")?.value || "").trim().toLowerCase();
   const pass = (safeGet("#studentPass")?.value || "").trim();
@@ -613,15 +628,26 @@ async function createStudent() {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
     const uid = cred.user.uid;
 
-    await setDoc(userRef(uid), {
+    const userData = {
       role: "student",
       name,
       username,
-      planMonths,
-      expiresAt: addMonthsISO(planMonths),
       createdAt: serverTimestamp()
-    }, { merge: true });
+    };
 
+    if (isTrial) {
+      userData.accessType = "trial";
+      userData.trialDays = 3;
+      userData.planMonths = 0;
+      userData.expiresAt = addDaysISO(3);
+    } else {
+      userData.accessType = "paid";
+      userData.planMonths = planMonths;
+      userData.trialDays = 0;
+      userData.expiresAt = addMonthsISO(planMonths);
+    }
+
+    await setDoc(userRef(uid), userData, { merge: true });
     await setDoc(plansRef(uid), { days: {} }, { merge: true });
 
     if (safeGet("#studentName")) safeGet("#studentName").value = "";
@@ -629,14 +655,24 @@ async function createStudent() {
     if (safeGet("#studentPass")) safeGet("#studentPass").value = "";
 
     await signOut(secondaryAuth);
-    setStatus("Aluno criado ✅", true);
+
+    if (isTrial) {
+      setStatus("Aluno criado com teste grátis de 3 dias ✅", true);
+    } else {
+      setStatus("Aluno criado ✅", true);
+    }
 
     await renderStudentsAsync();
     await loadStudentsForSelect();
+    await updateDashboard();
   } catch (e) {
     console.error(e);
     setStatus("Erro: Auth Email/Senha não ativo ou usuário já existe", false);
   }
+}
+
+async function createTrialStudent() {
+  await createStudent(true);
 }
 
 async function loadAllStudents() {
@@ -656,13 +692,18 @@ async function renderStudentsAsync() {
 
   students.forEach(s => {
     const left = daysLeft(s.expiresAt);
+    const access = getAccessLabel(s);
+    const status = left >= 0 ? "Ativo" : "Vencido";
+    const duration = s.accessType === "trial" ? "3 dias" : `${s.planMonths || "—"} meses`;
+
     tb.innerHTML += `
       <tr>
         <td>${s.name || ""}</td>
         <td>${s.username || ""}</td>
-        <td>${s.planMonths || "—"}m</td>
+        <td>${access}</td>
+        <td>${duration}</td>
         <td>${fmtDate(s.expiresAt)} (${left}d)</td>
-        <td>${left >= 0 ? "Ativo" : "Vencido"}</td>
+        <td>${status}</td>
         <td>
           <button class="btn danger" type="button" data-delst="${s.uid}">Excluir</button>
           <button class="btn" type="button" data-renew="${s.uid}">Renovar</button>
@@ -681,6 +722,7 @@ async function renderStudentsAsync() {
         setStatus("Aluno removido", true);
         await renderStudentsAsync();
         await loadStudentsForSelect();
+        await updateDashboard();
       } catch (e) {
         console.error(e);
         setStatus("Erro ao excluir", false);
@@ -693,10 +735,17 @@ async function renderStudentsAsync() {
       const uid = btn.dataset.renew;
       const months = Number(prompt("Renovar por quantos meses? (3/6/12)", "3") || "0");
       if (!months) return;
+
       try {
-        await updateDoc(userRef(uid), { planMonths: months, expiresAt: addMonthsISO(months) });
+        await updateDoc(userRef(uid), {
+          accessType: "paid",
+          planMonths: months,
+          trialDays: 0,
+          expiresAt: addMonthsISO(months)
+        });
         setStatus("Plano renovado", true);
         await renderStudentsAsync();
+        await updateDashboard();
       } catch (e) {
         console.error(e);
         setStatus("Erro ao renovar", false);
@@ -766,6 +815,7 @@ async function addToPlan() {
   await setPlanDays(uid, days);
   setStatus("Adicionado no treino", true);
   await renderPlansAdmin();
+  await updateDashboard();
 }
 
 async function renderPlansAdmin() {
@@ -819,6 +869,7 @@ async function clearDay() {
   await setPlanDays(uid, days);
   setStatus("Dia limpo", true);
   await renderPlansAdmin();
+  await updateDashboard();
 }
 
 async function clearAllPlans() {
@@ -829,6 +880,40 @@ async function clearAllPlans() {
   await setPlanDays(uid, {});
   setStatus("Treinos apagados", true);
   await renderPlansAdmin();
+  await updateDashboard();
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+async function updateDashboard() {
+  const studentsEl = safeGet("#dashStudents");
+  const exercisesEl = safeGet("#dashExercises");
+  const plansEl = safeGet("#dashPlans");
+
+  try {
+    const students = await loadAllStudents();
+    if (studentsEl) studentsEl.textContent = String(students.length);
+  } catch {
+    if (studentsEl) studentsEl.textContent = "0";
+  }
+
+  if (exercisesEl) exercisesEl.textContent = String(exercises.length);
+
+  try {
+    const plansSnap = await getDocs(collection(db, "plans"));
+    let totalBlocks = 0;
+
+    plansSnap.docs.forEach(d => {
+      const data = d.data() || {};
+      const days = data.days || {};
+      totalBlocks += Object.keys(days).length;
+    });
+
+    if (plansEl) plansEl.textContent = String(totalBlocks);
+  } catch {
+    if (plansEl) plansEl.textContent = "0";
+  }
 }
 
 /* =========================
@@ -870,7 +955,7 @@ function renderStudentWelcome(name) {
 }
 
 /* =========================
-   ALUNO: CARDS (COM THUMB)
+   ALUNO: CARDS
 ========================= */
 function videoCardHTML(ex) {
   const playable = !!(ex.youtube && youtubeToEmbed(ex.youtube));
@@ -1034,6 +1119,7 @@ function bindMenu() {
       showView(v);
 
       if (currentRole === "admin") {
+        if (v === "dashboard") await updateDashboard();
         if (v === "alunos") await renderStudentsAsync();
         if (v === "exercicios") renderExercisesAdmin();
         if (v === "treinos") await renderPlansAdmin();
@@ -1058,7 +1144,8 @@ async function init() {
   safeGet("#btnLoginAluno") && (safeGet("#btnLoginAluno").onclick = loginAluno);
   safeGet("#btnLogout") && (safeGet("#btnLogout").onclick = logout);
 
-  safeGet("#btnAddStudent") && (safeGet("#btnAddStudent").onclick = createStudent);
+  safeGet("#btnAddStudent") && (safeGet("#btnAddStudent").onclick = () => createStudent(false));
+  safeGet("#btnAddTrialStudent") && (safeGet("#btnAddTrialStudent").onclick = createTrialStudent);
   safeGet("#btnAddExercise") && (safeGet("#btnAddExercise").onclick = addExercise);
 
   safeGet("#filterGroup") && (safeGet("#filterGroup").onchange = renderExercisesAdmin);
@@ -1078,7 +1165,6 @@ async function init() {
   fillGroups();
   fillPlanDays();
 
-  // ✅ Começa mostrando login até o Auth decidir
   safeGet("#loginScreen")?.classList.remove("hidden");
   safeGet("#app")?.classList.add("hidden");
 
@@ -1094,26 +1180,25 @@ async function init() {
       safeGet("#loginScreen")?.classList.remove("hidden");
       safeGet("#app")?.classList.add("hidden");
       currentRole = null;
-      if (unsubExercises) { unsubExercises(); unsubExercises = null; }
+      if (unsubExercises) {
+        unsubExercises();
+        unsubExercises = null;
+      }
       return;
     }
 
-    // ✅ ENTRA NO PAINEL PRIMEIRO (sem travar em Firestore)
     safeGet("#loginScreen")?.classList.add("hidden");
     safeGet("#app")?.classList.remove("hidden");
     setStatus("Carregando...", true);
 
-    // ✅ Carrega exercícios um pouco depois (não “trava” a entrada)
     if (!unsubExercises) {
       setTimeout(() => {
         if (!unsubExercises && currentUser) unsubExercises = listenExercises();
       }, 800);
     }
 
-    // Firestore em background
     ensureUserDocOnFirstLogin(u).catch(console.error);
 
-    // Role (precisa pra menus)
     try {
       currentRole = (await getMyRole(u.uid)) || "student";
     } catch (e) {
@@ -1131,11 +1216,11 @@ async function init() {
       showView("dashboard");
       setStatus("OK", true);
 
-      // ✅ carrega dados sem travar
       loadStudentsForSelect().catch(console.error);
       renderStudentsAsync().catch(console.error);
       Promise.resolve().then(() => renderExercisesAdmin()).catch(console.error);
       Promise.resolve().then(() => fillPlanExercises()).catch(console.error);
+      updateDashboard().catch(console.error);
 
     } else {
       safeGet("#menuAdmin")?.classList.add("hidden");
@@ -1145,19 +1230,32 @@ async function init() {
       showView("videos");
       setStatus("OK", true);
 
-      // ✅ mostra já alguma coisa
       renderStudentWelcome("Aluno(a)");
       renderStudentVideos();
 
-      // ✅ busca dados do aluno sem travar
       getDoc(userRef(u.uid)).then((snap) => {
         const me = snap.exists() ? (snap.data() || {}) : {};
-        safeGet("#welcomeLine") && (safeGet("#welcomeLine").textContent = me.name ? `Olá, ${me.name}.` : "Olá!");
+
         renderStudentWelcome(me.name);
 
+        const left = daysLeft(me.expiresAt);
+
+        if (safeGet("#welcomeLine")) {
+          if (me.accessType === "trial" && left >= 0) {
+            safeGet("#welcomeLine").textContent = `Olá, ${me.name || "Aluno"}! Seu teste grátis termina em ${left} dia(s).`;
+          } else {
+            safeGet("#welcomeLine").textContent = me.name ? `Olá, ${me.name}.` : "Olá!";
+          }
+        }
+
         if (me.expiresAt && daysLeft(me.expiresAt) < 0) {
-          alert("Seu plano está vencido. Fale com a administradora.");
+          if (me.accessType === "trial") {
+            alert("Seu teste grátis de 3 dias expirou. Fale com a administradora para liberar o plano.");
+          } else {
+            alert("Seu plano está vencido. Fale com a administradora.");
+          }
           logout();
+          return;
         }
       }).catch(console.error);
     }
@@ -1167,7 +1265,7 @@ async function init() {
 init();
 
 /* =========================================================
-  ⚠️ IMPORTANTE (CSS)
+  IMPORTANTE (CSS)
   Para a thumb aparecer bonitinha, adicione no styles.css:
 
   .vcard-thumb{
