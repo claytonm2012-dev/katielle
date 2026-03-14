@@ -122,13 +122,20 @@
           <input id="studentName" placeholder="Nome">
           <input id="studentUser" placeholder="Usuário">
           <input id="studentPass" placeholder="Senha">
+
           <select id="studentPlan">
             <option value="3">3 meses</option>
             <option value="6">6 meses</option>
             <option value="12">12 meses</option>
           </select>
-          <button id="btnAddStudent" class="btn primary">Criar</button>
+
+          <button id="btnAddStudent" class="btn primary">Criar plano pago</button>
+          <button id="btnAddTrialStudent" class="btn">Criar teste grátis 3 dias</button>
         </div>
+
+        <p class="muted mt">
+          O teste grátis libera acesso por 3 dias e bloqueia automaticamente quando vencer.
+        </p>
       </div>
 
       <div class="card">
@@ -139,7 +146,8 @@
               <tr>
                 <th>Nome</th>
                 <th>Usuário</th>
-                <th>Plano</th>
+                <th>Tipo de acesso</th>
+                <th>Duração</th>
                 <th>Vencimento</th>
                 <th>Status</th>
                 <th>Ações</th>
