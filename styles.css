@@ -10,6 +10,8 @@
   --stroke: rgba(255,255,255,0.12);
   --muted: rgba(255,255,255,0.72);
   --ok: #18c37d;
+  --warn: #f5c451;
+  --danger: #ff6b6b;
 }
 
 body {
@@ -176,6 +178,7 @@ hr {
   color: #fff;
   background: rgba(255,255,255,0.08);
   transition: 0.2s;
+  white-space: nowrap;
 }
 
 .btn:hover {
@@ -344,27 +347,35 @@ textarea {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+  border-radius: 16px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
+  min-width: 760px;
 }
 
 th, td {
   text-align: left;
   padding: 12px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
+  vertical-align: middle;
 }
 
 th {
   font-size: 13px;
   opacity: 0.8;
+  background: rgba(255,255,255,0.02);
 }
 
 td {
   font-size: 14px;
+}
+
+tbody tr:hover {
+  background: rgba(255,255,255,0.03);
 }
 
 /* ================= VIDEO GRID (ALUNO) ================= */
@@ -394,7 +405,7 @@ td {
   gap: 12px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 8px 44px 12px; /* espaço pras setas */
+  padding: 8px 44px 12px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
 }
@@ -409,7 +420,6 @@ td {
 .vcard{
   min-width: 220px;
   max-width: 220px;
-  height: 140px;
   border-radius: 14px;
   border: 1px solid var(--stroke);
   background: rgba(255,255,255,.05);
@@ -419,7 +429,7 @@ td {
   text-align: left;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   scroll-snap-align: start;
   transition: transform .12s ease, filter .12s ease;
 }
@@ -428,6 +438,13 @@ td {
   transform: scale(1.03);
   filter: brightness(1.08);
   border-color: rgba(229,9,20,0.55);
+}
+
+.vcard-top{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
 }
 
 .vcard-name{
@@ -439,12 +456,13 @@ td {
 .vcard-group{
   font-size: 12px;
   color: var(--muted);
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .vcard-badge{
   display:flex;
   justify-content:flex-end;
+  margin-top: auto;
 }
 
 .badge-ok,
@@ -550,6 +568,31 @@ td {
   background: #000;
 }
 
+/* ================= THUMB DOS VÍDEOS ================= */
+.vcard-thumb{
+  width: 100%;
+  height: 140px;
+  border-radius: 16px;
+  background-size: cover;
+  background-position: center;
+  background-color: #111;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.thumb-no{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  color: #ccc;
+  background: rgba(0,0,0,0.6);
+}
+
 /* ================= RESPONSIVO ================= */
 @media(max-width: 900px) {
   .grid3 {
@@ -577,7 +620,6 @@ td {
     padding: 12px;
   }
 
-  /* mantém setas no celular (não some) */
   .carousel-btn{
     display: block;
     width: 40px;
@@ -593,35 +635,26 @@ td {
   .vcard{
     min-width: 180px;
     max-width: 180px;
-    height: 132px;
+  }
+
+  .vcard-thumb{
+    height: 120px;
   }
 
   .modal-box {
     margin: 40px auto;
   }
-}
-.vcard-thumb{
-  width: 100%;
-  height: 140px;
-  border-radius: 16px;
-  background-size: cover;
-  background-position: center;
-  background-color: #111;
-  margin-bottom: 12px;
-  position: relative;
-  overflow: hidden;
-}
 
-.thumb-no{
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-  color: #ccc;
-  background: rgba(0,0,0,0.6);
+  th, td {
+    padding: 10px;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .row.wrap.gap {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
-
-
