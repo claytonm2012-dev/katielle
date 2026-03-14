@@ -201,7 +201,6 @@
             <tbody></tbody>
           </table>
         </div>
-
       </div>
     </section>
 
@@ -239,11 +238,38 @@
     <!-- ===== VÍDEOS (ALUNO) ===== -->
     <section id="view-videos" class="view hidden">
 
-      <div class="card" id="welcomeStudentCard">
-        <h3 id="welcomeStudentTitle">Bem-vindo(a)!</h3>
-        <p class="muted" id="welcomeStudentText">
-          Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo.
-        </p>
+      <div class="student-hero" id="welcomeStudentCard">
+        <div class="student-hero-left">
+          <span class="student-badge" id="studentAccessBadge">Aluno</span>
+          <h3 id="welcomeStudentTitle">Bem-vindo(a)!</h3>
+          <p class="muted" id="welcomeStudentText">
+            Comece por aqui: assista aos vídeos iniciais e depois explore os grupos abaixo.
+          </p>
+        </div>
+
+        <div class="student-hero-right">
+          <div class="hero-mini-card">
+            <span class="hero-mini-label">Status</span>
+            <strong id="studentStatusText">Ativo</strong>
+          </div>
+          <div class="hero-mini-card">
+            <span class="hero-mini-label">Vencimento</span>
+            <strong id="studentExpireText">—</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <button id="btnGoMyWorkout" class="btn primary">Meu treino de hoje</button>
+        <a
+          id="btnWhatsAppSupport"
+          class="btn"
+          href="https://api.whatsapp.com/send?phone=5535998986307&text=Oi%20Katielle%2C%20vim%20pelo%20seu%20Instagram%20e%20gostaria%20de%20saber%20mais%20sobre%20o%20acompanhamento%20e%20seu%20trabalho."
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Falar com a personal
+        </a>
       </div>
 
       <div class="card">
@@ -289,6 +315,32 @@
     </section>
 
   </main>
+
+  <div id="expiredOverlay" class="expired-overlay hidden">
+    <div class="expired-card">
+      <div class="expired-icon">!</div>
+      <h2 id="expiredTitle">Seu acesso expirou</h2>
+      <p id="expiredText">
+        Seu plano não está mais ativo no momento. Fale com a administradora para renovar seu acesso.
+      </p>
+
+      <div class="expired-actions">
+        <a
+          id="expiredWhatsappBtn"
+          class="btn primary"
+          href="https://api.whatsapp.com/send?phone=5535998986307&text=Oi%20Katielle%2C%20vim%20pelo%20seu%20Instagram%20e%20gostaria%20de%20saber%20mais%20sobre%20o%20acompanhamento%20e%20seu%20trabalho."
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Renovar pelo WhatsApp
+        </a>
+
+        <button id="expiredLogoutBtn" class="btn danger" type="button">
+          Sair
+        </button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <script type="module" src="app.js"></script>
