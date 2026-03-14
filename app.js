@@ -1,20 +1,5 @@
 /* =========================================================
    APP.JS - Plataforma Katielle Amaral (Firebase)
-   - Auth + Firestore
-   - Admin: alunos, exercícios, treinos
-   - Aluno: carrossel Netflix + setas + modal vídeo
-
-   ✅ ATUALIZAÇÕES:
-   1) Login “rápido” (não trava a tela): o painel abre primeiro e os dados carregam depois
-   2) Mostra o erro REAL do Firebase no login
-   3) Mantém logado: só sai quando clicar em Sair
-   4) Persistência configurada 1 vez
-   5) TESTE GRÁTIS de 3 dias para aluno
-   6) Bloqueio automático ao vencer
-   7) Renovação muda teste para plano pago
-
-   IMPORTANTE (index.html):
-   <script type="module" src="app.js"></script>
 ========================================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
@@ -43,7 +28,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
 /* =========================
-   FIREBASE CONFIG (SEU)
+   FIREBASE CONFIG
 ========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC_7DoPLZ6I31ZgD6HRt-d2EKLnLzX-dU0",
@@ -59,7 +44,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Persistência configurada 1 vez
 const persistenceReady = Promise.race([
   setPersistence(auth, browserLocalPersistence),
   new Promise((_, reject) =>
@@ -69,7 +53,6 @@ const persistenceReady = Promise.race([
   console.error("PERSISTENCE ERROR:", e);
 });
 
-// Auth secundário: criar aluno sem deslogar admin
 const secondaryApp = initializeApp(firebaseConfig, "secondary");
 const secondaryAuth = getAuth(secondaryApp);
 
@@ -128,7 +111,7 @@ function normalizeEmail(userLike) {
 }
 
 /* =========================================================
-   YOUTUBE (COM SHORTS)
+   YOUTUBE
 ========================================================= */
 function youtubeToEmbed(url) {
   if (!url) return "";
@@ -196,7 +179,7 @@ const exercisesCol = collection(db, "exercises");
 const plansRef = (uid) => doc(db, "plans", uid);
 
 /* =========================
-   CONFIG (groups/models)
+   CONFIG
 ========================= */
 async function ensureConfig() {
   const snap = await getDoc(configRef);
@@ -610,6 +593,71 @@ function fmtDate(iso) {
 function getAccessLabel(user) {
   if (user?.accessType === "trial") return "Teste grátis";
   return "Plano pago";
+}
+
+function getStudentStatus(user) {
+  const left = daysLeft(user?.expiresAt);
+  if (left < 0) return "Vencido";
+  if (user?.accessType === "trial") return "Teste grátis";
+  return "Ativo";
+}
+
+function showExpiredOverlay(userData = {}) {
+  const overlay = safeGet("#expiredOverlay");
+  if (!overlay) return;
+
+  const title = safeGet("#expiredTitle");
+  const text = safeGet("#expiredText");
+
+  if (userData?.accessType === "trial") {
+    if (title) title.textContent = "Seu teste grátis expirou";
+    if (text) {
+      text.textContent = "Seu acesso de 3 dias terminou. Fale com a administradora para liberar o plano completo.";
+    }
+  } else {
+    if (title) title.textContent = "Seu plano expirou";
+    if (text) {
+      text.textContent = "Seu acesso não está mais ativo. Fale com a administradora para renovar seu plano.";
+    }
+  }
+
+  overlay.classList.remove("hidden");
+}
+
+function hideExpiredOverlay() {
+  const overlay = safeGet("#expiredOverlay");
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+}
+
+function updateStudentHero(me = {}) {
+  const badge = safeGet("#studentAccessBadge");
+  const statusText = safeGet("#studentStatusText");
+  const expireText = safeGet("#studentExpireText");
+  const welcomeLine = safeGet("#welcomeLine");
+
+  const left = daysLeft(me.expiresAt);
+  const status = getStudentStatus(me);
+
+  if (badge) {
+    badge.textContent = me.accessType === "trial" ? "Teste grátis" : "Plano ativo";
+    badge.className = me.accessType === "trial"
+      ? "student-badge trial"
+      : "student-badge paid";
+  }
+
+  if (statusText) statusText.textContent = status;
+  if (expireText) expireText.textContent = fmtDate(me.expiresAt);
+
+  if (welcomeLine) {
+    if (me.accessType === "trial" && left >= 0) {
+      welcomeLine.textContent = `Olá, ${me.name || "Aluno"}! Seu teste grátis termina em ${left} dia(s).`;
+    } else if (left >= 0) {
+      welcomeLine.textContent = `Olá, ${me.name || "Aluno"}! Seu acesso está ativo até ${fmtDate(me.expiresAt)}.`;
+    } else {
+      welcomeLine.textContent = `Olá, ${me.name || "Aluno"}! Seu acesso está vencido.`;
+    }
+  }
 }
 
 async function createStudent(isTrial = false) {
@@ -1161,6 +1209,13 @@ async function init() {
   safeGet("#studentSearch")?.addEventListener("input", renderStudentVideos);
   safeGet("#studentFilterGroup")?.addEventListener("change", renderStudentVideos);
 
+  safeGet("#btnGoMyWorkout") && (safeGet("#btnGoMyWorkout").onclick = async () => {
+    showView("meutreino");
+    await renderPlansStudent();
+  });
+
+  safeGet("#expiredLogoutBtn") && (safeGet("#expiredLogoutBtn").onclick = logout);
+
   await ensureConfig();
   fillGroups();
   fillPlanDays();
@@ -1177,6 +1232,7 @@ async function init() {
     setLoginMsg("");
 
     if (!u) {
+      hideExpiredOverlay();
       safeGet("#loginScreen")?.classList.remove("hidden");
       safeGet("#app")?.classList.add("hidden");
       currentRole = null;
@@ -1205,7 +1261,6 @@ async function init() {
       console.error("ROLE ERROR:", e);
       currentRole = "student";
     }
-    console.log("ROLE:", currentRole);
 
     if (currentRole === "admin") {
       safeGet("#menuAluno")?.classList.add("hidden");
@@ -1215,6 +1270,7 @@ async function init() {
 
       showView("dashboard");
       setStatus("OK", true);
+      hideExpiredOverlay();
 
       loadStudentsForSelect().catch(console.error);
       renderStudentsAsync().catch(console.error);
@@ -1237,24 +1293,21 @@ async function init() {
         const me = snap.exists() ? (snap.data() || {}) : {};
 
         renderStudentWelcome(me.name);
-
-        const left = daysLeft(me.expiresAt);
-
-        if (safeGet("#welcomeLine")) {
-          if (me.accessType === "trial" && left >= 0) {
-            safeGet("#welcomeLine").textContent = `Olá, ${me.name || "Aluno"}! Seu teste grátis termina em ${left} dia(s).`;
-          } else {
-            safeGet("#welcomeLine").textContent = me.name ? `Olá, ${me.name}.` : "Olá!";
-          }
-        }
+        updateStudentHero(me);
+        hideExpiredOverlay();
 
         if (me.expiresAt && daysLeft(me.expiresAt) < 0) {
-          if (me.accessType === "trial") {
-            alert("Seu teste grátis de 3 dias expirou. Fale com a administradora para liberar o plano.");
-          } else {
-            alert("Seu plano está vencido. Fale com a administradora.");
-          }
-          logout();
+          showExpiredOverlay(me);
+
+          safeGet("#menuAluno")?.classList.add("hidden");
+          showView("videos");
+
+          const grid = safeGet("#studentVideosGrid");
+          const planPreview = safeGet("#studentPlanPreview");
+
+          if (grid) grid.innerHTML = "";
+          if (planPreview) planPreview.innerHTML = `<div class="muted">Acesso indisponível.</div>`;
+
           return;
         }
       }).catch(console.error);
@@ -1263,31 +1316,3 @@ async function init() {
 }
 
 init();
-
-/* =========================================================
-  IMPORTANTE (CSS)
-  Para a thumb aparecer bonitinha, adicione no styles.css:
-
-  .vcard-thumb{
-    width: 100%;
-    height: 140px;
-    border-radius: 16px;
-    background-size: cover;
-    background-position: center;
-    background-color: #111;
-    margin-bottom: 12px;
-    position: relative;
-    overflow: hidden;
-  }
-  .thumb-no{
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 14px;
-    color: #ccc;
-    background: rgba(0,0,0,0.6);
-  }
-========================================================= */
