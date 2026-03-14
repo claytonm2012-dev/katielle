@@ -53,8 +53,7 @@ hr {
   margin: 18px 0;
 }
 
-/* ================= LOGIN BG (com fallback) ================= */
-/* Se tiver login-bg.jpg na mesma pasta, aparece */
+/* ================= LOGIN BG ================= */
 .login{
   background:
     linear-gradient(180deg, rgba(0,0,0,.60), rgba(0,0,0,.85)),
@@ -385,9 +384,7 @@ tbody tr:hover {
   gap: 25px;
 }
 
-/* =========================
-   NETFLIX-LIKE CAROUSEL + SETAS
-========================= */
+/* ================= NETFLIX-LIKE ================= */
 .row-netflix{
   position: relative;
   margin-top: 14px;
@@ -399,7 +396,6 @@ tbody tr:hover {
   letter-spacing: .2px;
 }
 
-/* trilho */
 .row-rail{
   display: flex;
   gap: 12px;
@@ -416,7 +412,6 @@ tbody tr:hover {
   border-radius: 999px;
 }
 
-/* cards */
 .vcard{
   min-width: 220px;
   max-width: 220px;
@@ -485,7 +480,6 @@ tbody tr:hover {
   color: rgba(255,255,255,.75);
 }
 
-/* setas (botões) */
 .carousel-btn{
   position: absolute;
   top: 54%;
@@ -593,6 +587,154 @@ tbody tr:hover {
   background: rgba(0,0,0,0.6);
 }
 
+/* ================= ÁREA PREMIUM DO ALUNO ================= */
+.student-hero{
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(229,9,20,0.16), rgba(255,255,255,0.04)),
+    rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  margin-bottom: 18px;
+}
+
+.student-hero-left{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.student-hero-right{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.student-badge{
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.student-badge.paid{
+  background: rgba(24,195,125,0.16);
+  border-color: rgba(24,195,125,0.35);
+  color: #7ef0b4;
+}
+
+.student-badge.trial{
+  background: rgba(245,196,81,0.14);
+  border-color: rgba(245,196,81,0.35);
+  color: #ffd978;
+}
+
+.hero-mini-card{
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-mini-label{
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.quick-actions{
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.quick-actions .btn{
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 190px;
+}
+
+/* ================= TELA DE ACESSO VENCIDO ================= */
+.expired-overlay{
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0,0,0,0.82);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.expired-card{
+  width: min(520px, 96vw);
+  background: rgba(16,16,22,0.96);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 24px;
+  padding: 28px;
+  text-align: center;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+}
+
+.expired-icon{
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(229,9,20,0.95), rgba(255,107,107,0.85));
+  box-shadow: 0 0 25px rgba(229,9,20,0.35);
+}
+
+.expired-card h2{
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.expired-card p{
+  font-size: 15px;
+  line-height: 1.6;
+  opacity: 0.86;
+}
+
+.expired-actions{
+  margin-top: 22px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.expired-actions .btn{
+  min-width: 180px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ================= RESPONSIVO ================= */
 @media(max-width: 900px) {
   .grid3 {
@@ -601,6 +743,15 @@ tbody tr:hover {
 
   .sidebar {
     width: 220px;
+  }
+
+  .student-hero{
+    flex-direction: column;
+  }
+
+  .student-hero-right{
+    min-width: auto;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -656,5 +807,21 @@ tbody tr:hover {
   .row.wrap.gap {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .student-hero-right{
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions{
+    flex-direction: column;
+  }
+
+  .expired-card{
+    padding: 22px;
+  }
+
+  .expired-card h2{
+    font-size: 24px;
   }
 }
