@@ -1055,7 +1055,6 @@ async function uploadSinglePhoto(file, studentId, date, label) {
 
   return data.secure_url;
 }
-}
 
 async function saveProgressPhotos() {
   const studentId = safeGet("#photoStudent")?.value || "";
