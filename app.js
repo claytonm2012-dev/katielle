@@ -24,7 +24,9 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
-  onSnapshot
+  onSnapshot,
+  query,
+  where
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
 /* =========================
@@ -110,6 +112,14 @@ function normalizeEmail(userLike) {
   return `${u}@katielle.app`;
 }
 
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /* =========================================================
    YOUTUBE
 ========================================================= */
@@ -177,6 +187,7 @@ const configRef = doc(db, "app", "config");
 const userRef = (uid) => doc(db, "users", uid);
 const exercisesCol = collection(db, "exercises");
 const plansRef = (uid) => doc(db, "plans", uid);
+const progressCol = collection(db, "progress");
 
 /* =========================
    CONFIG
@@ -216,6 +227,7 @@ function showView(v) {
     alunos: "Alunos",
     exercicios: "Exercícios",
     treinos: "Treinos",
+    evolucao: "Evolução",
     backup: "Backup",
     videos: "Vídeos",
     meutreino: "Meu Treino"
@@ -712,6 +724,7 @@ async function createStudent(isTrial = false) {
 
     await renderStudentsAsync();
     await loadStudentsForSelect();
+    await loadStudentsForEvolutionSelect();
     await updateDashboard();
   } catch (e) {
     console.error(e);
@@ -770,6 +783,7 @@ async function renderStudentsAsync() {
         setStatus("Aluno removido", true);
         await renderStudentsAsync();
         await loadStudentsForSelect();
+        await loadStudentsForEvolutionSelect();
         await updateDashboard();
       } catch (e) {
         console.error(e);
@@ -800,6 +814,149 @@ async function renderStudentsAsync() {
       }
     };
   });
+}
+
+/* =========================
+   EVOLUÇÃO
+========================= */
+async function loadStudentsForEvolutionSelect() {
+  const sel = safeGet("#evolutionStudent");
+  if (!sel) return;
+
+  const students = await loadAllStudents();
+  sel.innerHTML = "";
+
+  students.forEach(s => {
+    sel.innerHTML += `<option value="${s.uid}">${s.name || s.username || s.uid}</option>`;
+  });
+}
+
+async function saveEvolution() {
+  const studentId = safeGet("#evolutionStudent")?.value || "";
+  const date = (safeGet("#evolutionDate")?.value || "").trim();
+  const weight = Number(safeGet("#evolutionWeight")?.value || 0);
+  const arm = Number(safeGet("#evolutionArm")?.value || 0);
+  const waist = Number(safeGet("#evolutionWaist")?.value || 0);
+  const hip = Number(safeGet("#evolutionHip")?.value || 0);
+  const thigh = Number(safeGet("#evolutionThigh")?.value || 0);
+  const notes = (safeGet("#evolutionNotes")?.value || "").trim();
+
+  if (!studentId || !date) {
+    return setStatus("Selecione aluno e data da avaliação", false);
+  }
+
+  try {
+    await addDoc(progressCol, {
+      studentId,
+      date,
+      weight,
+      arm,
+      waist,
+      hip,
+      thigh,
+      notes,
+      createdAt: serverTimestamp()
+    });
+
+    if (safeGet("#evolutionDate")) safeGet("#evolutionDate").value = todayISO();
+    if (safeGet("#evolutionWeight")) safeGet("#evolutionWeight").value = "";
+    if (safeGet("#evolutionArm")) safeGet("#evolutionArm").value = "";
+    if (safeGet("#evolutionWaist")) safeGet("#evolutionWaist").value = "";
+    if (safeGet("#evolutionHip")) safeGet("#evolutionHip").value = "";
+    if (safeGet("#evolutionThigh")) safeGet("#evolutionThigh").value = "";
+    if (safeGet("#evolutionNotes")) safeGet("#evolutionNotes").value = "";
+
+    setStatus("Avaliação salva com sucesso ✅", true);
+
+    if (currentRole === "admin") {
+      await renderEvolutionAdmin();
+    }
+  } catch (e) {
+    console.error(e);
+    setStatus("Erro ao salvar avaliação", false);
+  }
+}
+
+async function getEvolutionEntries(studentId) {
+  if (!studentId) return [];
+
+  const qRef = query(progressCol, where("studentId", "==", studentId));
+  const snap = await getDocs(qRef);
+
+  const entries = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+
+  entries.sort((a, b) => {
+    const da = new Date(a.date || "1900-01-01");
+    const dbb = new Date(b.date || "1900-01-01");
+    return dbb - da;
+  });
+
+  return entries;
+}
+
+function renderEvolutionSummary(entries) {
+  const latest = entries[0] || null;
+
+  safeGet("#sumWeight") && (safeGet("#sumWeight").textContent = latest?.weight ? `${latest.weight} kg` : "—");
+  safeGet("#sumArm") && (safeGet("#sumArm").textContent = latest?.arm ? `${latest.arm} cm` : "—");
+  safeGet("#sumWaist") && (safeGet("#sumWaist").textContent = latest?.waist ? `${latest.waist} cm` : "—");
+  safeGet("#sumHip") && (safeGet("#sumHip").textContent = latest?.hip ? `${latest.hip} cm` : "—");
+  safeGet("#sumThigh") && (safeGet("#sumThigh").textContent = latest?.thigh ? `${latest.thigh} cm` : "—");
+  safeGet("#sumDate") && (safeGet("#sumDate").textContent = latest?.date ? latest.date : "—");
+}
+
+function renderEvolutionHistory(entries) {
+  const box = safeGet("#evolutionHistory");
+  if (!box) return;
+
+  if (!entries.length) {
+    box.innerHTML = `<div class="muted">Nenhuma avaliação encontrada.</div>`;
+    return;
+  }
+
+  box.innerHTML = entries.map(item => `
+    <div class="evolution-entry">
+      <div class="evolution-entry-top">
+        <strong>${item.date || "Sem data"}</strong>
+      </div>
+
+      <div class="evolution-entry-grid">
+        <div><span>Peso:</span> <b>${item.weight || "—"} kg</b></div>
+        <div><span>Braço:</span> <b>${item.arm || "—"} cm</b></div>
+        <div><span>Cintura:</span> <b>${item.waist || "—"} cm</b></div>
+        <div><span>Quadril:</span> <b>${item.hip || "—"} cm</b></div>
+        <div><span>Coxa:</span> <b>${item.thigh || "—"} cm</b></div>
+      </div>
+
+      ${item.notes ? `<div class="evolution-notes"><span>Observações:</span> ${item.notes}</div>` : ``}
+    </div>
+  `).join("");
+}
+
+async function renderEvolutionAdmin() {
+  safeGet("#evolutionAdminBox")?.classList.remove("hidden");
+
+  if (safeGet("#evolutionDate") && !safeGet("#evolutionDate").value) {
+    safeGet("#evolutionDate").value = todayISO();
+  }
+
+  await loadStudentsForEvolutionSelect();
+
+  const studentId = safeGet("#evolutionStudent")?.value || "";
+  const entries = await getEvolutionEntries(studentId);
+
+  renderEvolutionSummary(entries);
+  renderEvolutionHistory(entries);
+}
+
+async function renderEvolutionStudent() {
+  safeGet("#evolutionAdminBox")?.classList.add("hidden");
+
+  const studentId = currentUser?.uid || "";
+  const entries = await getEvolutionEntries(studentId);
+
+  renderEvolutionSummary(entries);
+  renderEvolutionHistory(entries);
 }
 
 /* =========================
@@ -1171,9 +1328,11 @@ function bindMenu() {
         if (v === "alunos") await renderStudentsAsync();
         if (v === "exercicios") renderExercisesAdmin();
         if (v === "treinos") await renderPlansAdmin();
+        if (v === "evolucao") await renderEvolutionAdmin();
       } else {
         if (v === "videos") renderStudentVideos();
         if (v === "meutreino") await renderPlansStudent();
+        if (v === "evolucao") await renderEvolutionStudent();
       }
     };
   });
@@ -1195,12 +1354,14 @@ async function init() {
   safeGet("#btnAddStudent") && (safeGet("#btnAddStudent").onclick = () => createStudent(false));
   safeGet("#btnAddTrialStudent") && (safeGet("#btnAddTrialStudent").onclick = createTrialStudent);
   safeGet("#btnAddExercise") && (safeGet("#btnAddExercise").onclick = addExercise);
+  safeGet("#btnSaveEvolution") && (safeGet("#btnSaveEvolution").onclick = saveEvolution);
 
   safeGet("#filterGroup") && (safeGet("#filterGroup").onchange = renderExercisesAdmin);
   safeGet("#searchExercise") && (safeGet("#searchExercise").oninput = renderExercisesAdmin);
 
   safeGet("#planGroup") && (safeGet("#planGroup").onchange = fillPlanExercises);
   safeGet("#planStudent") && (safeGet("#planStudent").onchange = renderPlansAdmin);
+  safeGet("#evolutionStudent") && (safeGet("#evolutionStudent").onchange = renderEvolutionAdmin);
 
   safeGet("#btnAddToPlan") && (safeGet("#btnAddToPlan").onclick = addToPlan);
   safeGet("#btnClearDay") && (safeGet("#btnClearDay").onclick = clearDay);
@@ -1273,10 +1434,13 @@ async function init() {
       hideExpiredOverlay();
 
       loadStudentsForSelect().catch(console.error);
+      loadStudentsForEvolutionSelect().catch(console.error);
       renderStudentsAsync().catch(console.error);
       Promise.resolve().then(() => renderExercisesAdmin()).catch(console.error);
       Promise.resolve().then(() => fillPlanExercises()).catch(console.error);
       updateDashboard().catch(console.error);
+
+      safeGet("#evolutionAdminBox")?.classList.remove("hidden");
 
     } else {
       safeGet("#menuAdmin")?.classList.add("hidden");
@@ -1289,7 +1453,7 @@ async function init() {
       renderStudentWelcome("Aluno(a)");
       renderStudentVideos();
 
-      getDoc(userRef(u.uid)).then((snap) => {
+      getDoc(userRef(u.uid)).then(async (snap) => {
         const me = snap.exists() ? (snap.data() || {}) : {};
 
         renderStudentWelcome(me.name);
@@ -1310,6 +1474,8 @@ async function init() {
 
           return;
         }
+
+        safeGet("#evolutionAdminBox")?.classList.add("hidden");
       }).catch(console.error);
     }
   });
