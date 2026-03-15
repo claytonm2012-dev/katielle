@@ -103,7 +103,15 @@ function setStatus(msg, ok = true) {
 
 function setLoginMsg(msg) {
   const el = safeGet("#loginMsg");
-  if (el) el.textContent = msg || "";
+  if (!el) return;
+
+  el.textContent = msg || "";
+
+  if (msg && String(msg).trim()) {
+    el.classList.remove("hidden");
+  } else {
+    el.classList.add("hidden");
+  }
 }
 
 function normalizeEmail(userLike) {
