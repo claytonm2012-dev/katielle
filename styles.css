@@ -141,6 +141,7 @@ hr {
   font-size: 14px;
   background: rgba(0,255,120,0.12);
   border: 1px solid rgba(0,255,120,0.25);
+  color: #d7ffe8;
 }
 
 .login label {
