@@ -29,12 +29,6 @@ import {
   where
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
 
 /* =========================
    FIREBASE CONFIG
