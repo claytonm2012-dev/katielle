@@ -1015,16 +1015,34 @@ async function loadStudentsForPhotoSelect(selectedUid = "") {
     sel.value = students[0].uid;
   }
 }
-
 async function uploadSinglePhoto(file, studentId, date, label) {
   if (!file) return "";
 
-  const safeName = String(file.name || "foto.jpg").replace(/[^\w.\-]/g, "_");
-  const path = `progress-photos/${studentId}/${date}/${label}-${Date.now()}-${safeName}`;
-  const storageRef = ref(storage, path);
+  const CLOUD_NAME = "dc2ys8jmd";
+  const UPLOAD_PRESET = "treino_alunos";
 
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+  formData.append("folder", `progresso-alunos/${studentId}/${date}`);
+  formData.append("public_id", `${label}-${Date.now()}`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || !data.secure_url) {
+    console.error("Cloudinary error:", data);
+    throw new Error(data?.error?.message || "Erro ao enviar imagem para o Cloudinary");
+  }
+
+  return data.secure_url;
+}
 }
 
 async function saveProgressPhotos() {
