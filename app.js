@@ -128,6 +128,29 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function getWeekStartAndEnd() {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(now.getDate() + diffToMonday);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function toDateOnlyString(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /* =========================================================
    YOUTUBE
 ========================================================= */
@@ -197,6 +220,7 @@ const exercisesCol = collection(db, "exercises");
 const plansRef = (uid) => doc(db, "plans", uid);
 const progressCol = collection(db, "progress");
 const progressPhotosCol = collection(db, "progressPhotos");
+const workoutLogsCol = collection(db, "workoutLogs");
 
 /* =========================
    CONFIG
@@ -1259,6 +1283,100 @@ async function clearAllPlans() {
 }
 
 /* =========================
+   WORKOUT LOGS / PROGRESSO SEMANAL
+========================= */
+async function hasWorkoutBeenCompletedToday(uid) {
+  if (!uid) return false;
+
+  const qRef = query(
+    workoutLogsCol,
+    where("studentId", "==", uid),
+    where("date", "==", todayISO())
+  );
+
+  const snap = await getDocs(qRef);
+  return !snap.empty;
+}
+
+async function getWeekWorkoutCount(uid) {
+  if (!uid) return 0;
+
+  const { start, end } = getWeekStartAndEnd();
+
+  const qRef = query(
+    workoutLogsCol,
+    where("studentId", "==", uid),
+    where("date", ">=", toDateOnlyString(start)),
+    where("date", "<=", toDateOnlyString(end))
+  );
+
+  const snap = await getDocs(qRef);
+  return snap.size;
+}
+
+async function updateStudentWeeklyProgress() {
+  const uid = currentUser?.uid;
+  if (!uid) return;
+
+  try {
+    const weekCount = await getWeekWorkoutCount(uid);
+    const doneToday = await hasWorkoutBeenCompletedToday(uid);
+
+    const weekEl = safeGet("#weekWorkoutsCount");
+    const todayEl = safeGet("#todayWorkoutStatus");
+    const btn = safeGet("#finishWorkoutBtn");
+    const motivationEl = safeGet("#progressMotivationText");
+
+    if (weekEl) weekEl.textContent = String(weekCount);
+    if (todayEl) todayEl.textContent = doneToday ? "Feito ✅" : "Pendente";
+
+    if (btn) {
+      btn.disabled = doneToday;
+      btn.textContent = doneToday ? "Treino concluído hoje ✅" : "Concluir treino de hoje";
+    }
+
+    if (motivationEl) {
+      if (weekCount === 0) {
+        motivationEl.textContent = "Seu foco começa hoje. Faça seu primeiro treino da semana.";
+      } else if (weekCount <= 2) {
+        motivationEl.textContent = "Boa constância. Continue treinando para manter o ritmo.";
+      } else if (weekCount <= 4) {
+        motivationEl.textContent = "Ótimo desempenho na semana. Você está evoluindo bem.";
+      } else {
+        motivationEl.textContent = "Semana excelente. Seu comprometimento está acima da média.";
+      }
+    }
+  } catch (e) {
+    console.error("updateStudentWeeklyProgress:", e);
+  }
+}
+
+async function concludeTodayWorkout() {
+  const uid = currentUser?.uid;
+  if (!uid) return;
+
+  try {
+    const doneToday = await hasWorkoutBeenCompletedToday(uid);
+    if (doneToday) {
+      setStatus("Treino de hoje já foi concluído", false);
+      return;
+    }
+
+    await addDoc(workoutLogsCol, {
+      studentId: uid,
+      date: todayISO(),
+      createdAt: serverTimestamp()
+    });
+
+    setStatus("Treino concluído com sucesso ✅", true);
+    await updateStudentWeeklyProgress();
+  } catch (e) {
+    console.error("concludeTodayWorkout:", e);
+    setStatus("Erro ao concluir treino", false);
+  }
+}
+
+/* =========================
    DASHBOARD
 ========================= */
 async function updateDashboard() {
@@ -1528,6 +1646,7 @@ async function init() {
   safeGet("#btnAddExercise") && (safeGet("#btnAddExercise").onclick = addExercise);
   safeGet("#btnSaveEvolution") && (safeGet("#btnSaveEvolution").onclick = saveEvolution);
   safeGet("#btnSavePhotos") && (safeGet("#btnSavePhotos").onclick = saveProgressPhotos);
+  safeGet("#finishWorkoutBtn") && (safeGet("#finishWorkoutBtn").onclick = concludeTodayWorkout);
 
   safeGet("#filterGroup") && (safeGet("#filterGroup").onchange = renderExercisesAdmin);
   safeGet("#searchExercise") && (safeGet("#searchExercise").oninput = renderExercisesAdmin);
@@ -1657,6 +1776,8 @@ async function init() {
 
         safeGet("#evolutionAdminBox")?.classList.add("hidden");
         safeGet("#photosAdminBox")?.classList.add("hidden");
+
+        await updateStudentWeeklyProgress();
       }).catch(console.error);
     }
   });
