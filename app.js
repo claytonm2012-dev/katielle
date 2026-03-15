@@ -1348,17 +1348,39 @@ async function updateStudentWeeklyProgress() {
     }
   } catch (e) {
     console.error("updateStudentWeeklyProgress:", e);
+
+    const todayEl = safeGet("#todayWorkoutStatus");
+    const btn = safeGet("#finishWorkoutBtn");
+
+    if (todayEl) todayEl.textContent = "Erro";
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Concluir treino de hoje";
+    }
   }
 }
 
 async function concludeTodayWorkout() {
   const uid = currentUser?.uid;
-  if (!uid) return;
+  const btn = safeGet("#finishWorkoutBtn");
+
+  if (!uid) {
+    alert("Usuário não identificado.");
+    return;
+  }
 
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Salvando treino...";
+    }
+
     const doneToday = await hasWorkoutBeenCompletedToday(uid);
+
     if (doneToday) {
       setStatus("Treino de hoje já foi concluído", false);
+      alert("Seu treino de hoje já foi concluído.");
+      await updateStudentWeeklyProgress();
       return;
     }
 
@@ -1369,10 +1391,15 @@ async function concludeTodayWorkout() {
     });
 
     setStatus("Treino concluído com sucesso ✅", true);
+    alert("Treino concluído com sucesso ✅");
     await updateStudentWeeklyProgress();
+
   } catch (e) {
     console.error("concludeTodayWorkout:", e);
     setStatus("Erro ao concluir treino", false);
+    alert("Erro ao concluir treino. Verifique as regras do Firestore/workoutLogs.");
+  } finally {
+    await updateStudentWeeklyProgress().catch(() => {});
   }
 }
 
@@ -1619,7 +1646,10 @@ function bindMenu() {
         if (v === "evolucao") await renderEvolutionAdmin();
         if (v === "fotos") await renderPhotosAdmin();
       } else {
-        if (v === "videos") renderStudentVideos();
+        if (v === "videos") {
+          renderStudentVideos();
+          await updateStudentWeeklyProgress();
+        }
         if (v === "meutreino") await renderPlansStudent();
         if (v === "evolucao") await renderEvolutionStudent();
         if (v === "fotos") await renderPhotosStudent();
