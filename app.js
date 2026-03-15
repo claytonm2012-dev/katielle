@@ -1285,33 +1285,43 @@ async function clearAllPlans() {
 /* =========================
    WORKOUT LOGS / PROGRESSO SEMANAL
 ========================= */
+
 async function hasWorkoutBeenCompletedToday(uid) {
   if (!uid) return false;
 
   const qRef = query(
     workoutLogsCol,
-    where("studentId", "==", uid),
-    where("date", "==", todayISO())
+    where("studentId", "==", uid)
   );
 
   const snap = await getDocs(qRef);
-  return !snap.empty;
+  const today = todayISO();
+
+  return snap.docs.some(d => {
+    const data = d.data() || {};
+    return data.date === today;
+  });
 }
 
 async function getWeekWorkoutCount(uid) {
   if (!uid) return 0;
 
   const { start, end } = getWeekStartAndEnd();
+  const startStr = toDateOnlyString(start);
+  const endStr = toDateOnlyString(end);
 
   const qRef = query(
     workoutLogsCol,
-    where("studentId", "==", uid),
-    where("date", ">=", toDateOnlyString(start)),
-    where("date", "<=", toDateOnlyString(end))
+    where("studentId", "==", uid)
   );
 
   const snap = await getDocs(qRef);
-  return snap.size;
+
+  return snap.docs.filter(d => {
+    const data = d.data() || {};
+    const date = data.date || "";
+    return date >= startStr && date <= endStr;
+  }).length;
 }
 
 async function updateStudentWeeklyProgress() {
@@ -1332,18 +1342,24 @@ async function updateStudentWeeklyProgress() {
 
     if (btn) {
       btn.disabled = doneToday;
-      btn.textContent = doneToday ? "Treino concluído hoje ✅" : "Concluir treino de hoje";
+      btn.textContent = doneToday
+        ? "Treino concluído hoje ✅"
+        : "Concluir treino de hoje";
     }
 
     if (motivationEl) {
       if (weekCount === 0) {
-        motivationEl.textContent = "Seu foco começa hoje. Faça seu primeiro treino da semana.";
+        motivationEl.textContent =
+          "Seu foco começa hoje. Faça seu primeiro treino da semana.";
       } else if (weekCount <= 2) {
-        motivationEl.textContent = "Boa constância. Continue treinando para manter o ritmo.";
+        motivationEl.textContent =
+          "Boa constância. Continue treinando para manter o ritmo.";
       } else if (weekCount <= 4) {
-        motivationEl.textContent = "Ótimo desempenho na semana. Você está evoluindo bem.";
+        motivationEl.textContent =
+          "Ótimo desempenho na semana. Você está evoluindo bem.";
       } else {
-        motivationEl.textContent = "Semana excelente. Seu comprometimento está acima da média.";
+        motivationEl.textContent =
+          "Semana excelente. Seu comprometimento está acima da média.";
       }
     }
   } catch (e) {
@@ -1392,20 +1408,17 @@ async function concludeTodayWorkout() {
 
     setStatus("Treino concluído com sucesso ✅", true);
     alert("Treino concluído com sucesso ✅");
+
     await updateStudentWeeklyProgress();
 
   } catch (e) {
     console.error("concludeTodayWorkout:", e);
     setStatus("Erro ao concluir treino", false);
-    alert("Erro ao concluir treino. Verifique as regras do Firestore/workoutLogs.");
+    alert("Erro ao concluir treino.");
   } finally {
-    await updateStudentWeeklyProgress().catch(() => {});
+    if (btn) btn.disabled = false;
   }
 }
-
-/* =========================
-   DASHBOARD
-========================= */
 async function updateDashboard() {
   const studentsEl = safeGet("#dashStudents");
   const exercisesEl = safeGet("#dashExercises");
