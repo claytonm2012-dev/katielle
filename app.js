@@ -308,26 +308,38 @@ function fillPlanDays() {
    LOGIN TABS
 ========================= */
 function bindLoginTabs() {
+
   const tabAdmin = safeGet("#tabAdmin");
   const tabAluno = safeGet("#tabAluno");
   const formAdmin = safeGet("#formAdmin");
   const formAluno = safeGet("#formAluno");
 
-  if (tabAdmin) tabAdmin.onclick = () => {
-    tabAdmin.classList.add("active");
-    tabAluno?.classList.remove("active");
-    formAdmin?.classList.remove("hidden");
-    formAluno?.classList.add("hidden");
-    setLoginMsg("");
-  };
+  if (!tabAdmin || !tabAluno || !formAdmin || !formAluno) return;
 
-  if (tabAluno) tabAluno.onclick = () => {
-    tabAluno.classList.add("active");
-    tabAdmin?.classList.remove("active");
-    formAluno?.classList.remove("hidden");
-    formAdmin?.classList.add("hidden");
+  function activateAdmin() {
+    tabAdmin.classList.add("active");
+    tabAluno.classList.remove("active");
+
+    formAdmin.classList.remove("hidden");
+    formAluno.classList.add("hidden");
+
     setLoginMsg("");
-  };
+  }
+
+  function activateAluno() {
+    tabAluno.classList.add("active");
+    tabAdmin.classList.remove("active");
+
+    formAluno.classList.remove("hidden");
+    formAdmin.classList.add("hidden");
+
+    setLoginMsg("");
+  }
+
+  tabAdmin.addEventListener("click", activateAdmin);
+  tabAluno.addEventListener("click", activateAluno);
+
+  activateAdmin();
 }
 
 /* =========================
