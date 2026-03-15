@@ -29,6 +29,13 @@ import {
   where
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
+
 /* =========================
    FIREBASE CONFIG
 ========================= */
@@ -45,6 +52,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 const persistenceReady = Promise.race([
   setPersistence(auth, browserLocalPersistence),
@@ -188,6 +196,7 @@ const userRef = (uid) => doc(db, "users", uid);
 const exercisesCol = collection(db, "exercises");
 const plansRef = (uid) => doc(db, "plans", uid);
 const progressCol = collection(db, "progress");
+const progressPhotosCol = collection(db, "progressPhotos");
 
 /* =========================
    CONFIG
@@ -228,6 +237,7 @@ function showView(v) {
     exercicios: "Exercícios",
     treinos: "Treinos",
     evolucao: "Evolução",
+    fotos: "Fotos",
     backup: "Backup",
     videos: "Vídeos",
     meutreino: "Meu Treino"
@@ -725,6 +735,7 @@ async function createStudent(isTrial = false) {
     await renderStudentsAsync();
     await loadStudentsForSelect();
     await loadStudentsForEvolutionSelect();
+    await loadStudentsForPhotoSelect();
     await updateDashboard();
   } catch (e) {
     console.error(e);
@@ -784,6 +795,7 @@ async function renderStudentsAsync() {
         await renderStudentsAsync();
         await loadStudentsForSelect();
         await loadStudentsForEvolutionSelect();
+        await loadStudentsForPhotoSelect();
         await updateDashboard();
       } catch (e) {
         console.error(e);
@@ -957,6 +969,143 @@ async function renderEvolutionStudent() {
 
   renderEvolutionSummary(entries);
   renderEvolutionHistory(entries);
+}
+
+/* =========================
+   FOTOS
+========================= */
+async function loadStudentsForPhotoSelect() {
+  const sel = safeGet("#photoStudent");
+  if (!sel) return;
+
+  const students = await loadAllStudents();
+  sel.innerHTML = "";
+
+  students.forEach(s => {
+    sel.innerHTML += `<option value="${s.uid}">${s.name || s.username || s.uid}</option>`;
+  });
+}
+
+async function uploadSinglePhoto(file, studentId, date, label) {
+  if (!file) return "";
+
+  const safeName = String(file.name || "foto.jpg").replace(/[^\w.\-]/g, "_");
+  const path = `progress-photos/${studentId}/${date}/${label}-${Date.now()}-${safeName}`;
+  const storageRef = ref(storage, path);
+
+  await uploadBytes(storageRef, file);
+  return await getDownloadURL(storageRef);
+}
+
+async function saveProgressPhotos() {
+  const studentId = safeGet("#photoStudent")?.value || "";
+  const date = (safeGet("#photoDate")?.value || "").trim();
+
+  const frontFile = safeGet("#photoFront")?.files?.[0] || null;
+  const sideFile = safeGet("#photoSide")?.files?.[0] || null;
+  const backFile = safeGet("#photoBack")?.files?.[0] || null;
+
+  if (!studentId || !date) {
+    return setStatus("Selecione aluno e data das fotos", false);
+  }
+
+  if (!frontFile && !sideFile && !backFile) {
+    return setStatus("Selecione pelo menos uma foto", false);
+  }
+
+  try {
+    setStatus("Enviando fotos...", true);
+
+    const frontUrl = await uploadSinglePhoto(frontFile, studentId, date, "front");
+    const sideUrl = await uploadSinglePhoto(sideFile, studentId, date, "side");
+    const backUrl = await uploadSinglePhoto(backFile, studentId, date, "back");
+
+    await addDoc(progressPhotosCol, {
+      studentId,
+      date,
+      front: frontUrl,
+      side: sideUrl,
+      back: backUrl,
+      createdAt: serverTimestamp()
+    });
+
+    if (safeGet("#photoDate")) safeGet("#photoDate").value = todayISO();
+    if (safeGet("#photoFront")) safeGet("#photoFront").value = "";
+    if (safeGet("#photoSide")) safeGet("#photoSide").value = "";
+    if (safeGet("#photoBack")) safeGet("#photoBack").value = "";
+
+    setStatus("Fotos salvas com sucesso ✅", true);
+
+    if (currentRole === "admin") {
+      await renderPhotosAdmin();
+    } else {
+      await renderPhotosStudent();
+    }
+  } catch (e) {
+    console.error("saveProgressPhotos:", e);
+    setStatus("Erro ao salvar fotos", false);
+  }
+}
+
+async function getPhotoEntries(studentId) {
+  if (!studentId) return [];
+
+  const qRef = query(progressPhotosCol, where("studentId", "==", studentId));
+  const snap = await getDocs(qRef);
+
+  const entries = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+
+  entries.sort((a, b) => {
+    const da = new Date(a.date || "1900-01-01");
+    const dbb = new Date(b.date || "1900-01-01");
+    return dbb - da;
+  });
+
+  return entries;
+}
+
+function renderPhotoGallery(entries) {
+  const box = safeGet("#photosGallery");
+  if (!box) return;
+
+  if (!entries.length) {
+    box.innerHTML = `<div class="muted">Nenhuma foto encontrada.</div>`;
+    return;
+  }
+
+  box.innerHTML = entries.map(item => `
+    <div class="photo-entry">
+      <div class="photo-entry-title">${item.date || "Sem data"}</div>
+
+      <div class="photo-entry-grid">
+        ${item.front ? `<div class="photo-thumb-box"><span>Frente</span><img src="${item.front}" alt="Frente"></div>` : ``}
+        ${item.side ? `<div class="photo-thumb-box"><span>Lado</span><img src="${item.side}" alt="Lado"></div>` : ``}
+        ${item.back ? `<div class="photo-thumb-box"><span>Costas</span><img src="${item.back}" alt="Costas"></div>` : ``}
+      </div>
+    </div>
+  `).join("");
+}
+
+async function renderPhotosAdmin() {
+  safeGet("#photosAdminBox")?.classList.remove("hidden");
+
+  if (safeGet("#photoDate") && !safeGet("#photoDate").value) {
+    safeGet("#photoDate").value = todayISO();
+  }
+
+  await loadStudentsForPhotoSelect();
+
+  const studentId = safeGet("#photoStudent")?.value || "";
+  const entries = await getPhotoEntries(studentId);
+  renderPhotoGallery(entries);
+}
+
+async function renderPhotosStudent() {
+  safeGet("#photosAdminBox")?.classList.add("hidden");
+
+  const studentId = currentUser?.uid || "";
+  const entries = await getPhotoEntries(studentId);
+  renderPhotoGallery(entries);
 }
 
 /* =========================
@@ -1329,10 +1478,12 @@ function bindMenu() {
         if (v === "exercicios") renderExercisesAdmin();
         if (v === "treinos") await renderPlansAdmin();
         if (v === "evolucao") await renderEvolutionAdmin();
+        if (v === "fotos") await renderPhotosAdmin();
       } else {
         if (v === "videos") renderStudentVideos();
         if (v === "meutreino") await renderPlansStudent();
         if (v === "evolucao") await renderEvolutionStudent();
+        if (v === "fotos") await renderPhotosStudent();
       }
     };
   });
@@ -1355,6 +1506,7 @@ async function init() {
   safeGet("#btnAddTrialStudent") && (safeGet("#btnAddTrialStudent").onclick = createTrialStudent);
   safeGet("#btnAddExercise") && (safeGet("#btnAddExercise").onclick = addExercise);
   safeGet("#btnSaveEvolution") && (safeGet("#btnSaveEvolution").onclick = saveEvolution);
+  safeGet("#btnSavePhotos") && (safeGet("#btnSavePhotos").onclick = saveProgressPhotos);
 
   safeGet("#filterGroup") && (safeGet("#filterGroup").onchange = renderExercisesAdmin);
   safeGet("#searchExercise") && (safeGet("#searchExercise").oninput = renderExercisesAdmin);
@@ -1362,6 +1514,7 @@ async function init() {
   safeGet("#planGroup") && (safeGet("#planGroup").onchange = fillPlanExercises);
   safeGet("#planStudent") && (safeGet("#planStudent").onchange = renderPlansAdmin);
   safeGet("#evolutionStudent") && (safeGet("#evolutionStudent").onchange = renderEvolutionAdmin);
+  safeGet("#photoStudent") && (safeGet("#photoStudent").onchange = renderPhotosAdmin);
 
   safeGet("#btnAddToPlan") && (safeGet("#btnAddToPlan").onclick = addToPlan);
   safeGet("#btnClearDay") && (safeGet("#btnClearDay").onclick = clearDay);
@@ -1435,12 +1588,14 @@ async function init() {
 
       loadStudentsForSelect().catch(console.error);
       loadStudentsForEvolutionSelect().catch(console.error);
+      loadStudentsForPhotoSelect().catch(console.error);
       renderStudentsAsync().catch(console.error);
       Promise.resolve().then(() => renderExercisesAdmin()).catch(console.error);
       Promise.resolve().then(() => fillPlanExercises()).catch(console.error);
       updateDashboard().catch(console.error);
 
       safeGet("#evolutionAdminBox")?.classList.remove("hidden");
+      safeGet("#photosAdminBox")?.classList.remove("hidden");
 
     } else {
       safeGet("#menuAdmin")?.classList.add("hidden");
@@ -1476,6 +1631,7 @@ async function init() {
         }
 
         safeGet("#evolutionAdminBox")?.classList.add("hidden");
+        safeGet("#photosAdminBox")?.classList.add("hidden");
       }).catch(console.error);
     }
   });
