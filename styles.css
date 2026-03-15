@@ -670,6 +670,99 @@ tbody tr:hover {
   min-width: 190px;
 }
 
+/* ================= NOVO BLOCO DE PROGRESSO ================= */
+.progress-hero{
+  display:flex;
+  justify-content:space-between;
+  align-items:stretch;
+  gap:18px;
+  padding:22px;
+  border-radius:24px;
+  background:
+    linear-gradient(135deg, rgba(229,9,20,0.18), rgba(255,255,255,0.04)),
+    rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.10);
+  margin-bottom:18px;
+}
+
+.progress-hero-left{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.progress-badge{
+  display:inline-flex;
+  width:fit-content;
+  padding:8px 12px;
+  border-radius:999px;
+  background:rgba(24,195,125,0.14);
+  border:1px solid rgba(24,195,125,0.30);
+  color:#7ef0b4;
+  font-size:12px;
+  font-weight:700;
+}
+
+.progress-title{
+  font-size:32px;
+  line-height:1.1;
+  margin:0;
+}
+
+.progress-text{
+  font-size:16px;
+  opacity:.82;
+  max-width:560px;
+}
+
+.progress-hero-right{
+  min-width:220px;
+  display:grid;
+  gap:12px;
+}
+
+.progress-mini-card{
+  padding:16px;
+  border-radius:18px;
+  background:rgba(0,0,0,0.24);
+  border:1px solid rgba(255,255,255,0.08);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.progress-mini-label{
+  font-size:12px;
+  opacity:.72;
+}
+
+.progress-mini-card strong{
+  font-size:28px;
+  font-weight:800;
+}
+
+.progress-action-card{
+  padding:18px;
+  border-radius:22px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  margin-bottom:18px;
+}
+
+.big-action-btn{
+  height:58px;
+  font-size:18px;
+  border-radius:18px;
+}
+
+#finishWorkoutBtn:disabled{
+  opacity:.78;
+  cursor:not-allowed;
+  background:rgba(24,195,125,0.16);
+  border:1px solid rgba(24,195,125,0.35);
+}
+
 /* ================= TELA DE ACESSO VENCIDO ================= */
 .expired-overlay{
   position: fixed;
@@ -901,6 +994,15 @@ tbody tr:hover {
     grid-template-columns: 1fr 1fr;
   }
 
+  .progress-hero{
+    flex-direction: column;
+  }
+
+  .progress-hero-right{
+    min-width:auto;
+    grid-template-columns:1fr 1fr;
+  }
+
   .evolution-summary-grid{
     grid-template-columns: repeat(2, 1fr);
   }
@@ -982,6 +1084,18 @@ tbody tr:hover {
 
   .expired-card h2{
     font-size: 24px;
+  }
+
+  .progress-title{
+    font-size:26px;
+  }
+
+  .progress-hero-right{
+    grid-template-columns:1fr;
+  }
+
+  .progress-text{
+    font-size:15px;
   }
 
   .evolution-summary-grid{
