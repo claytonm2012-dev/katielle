@@ -73,6 +73,7 @@
       <button class="menu-item" data-view="exercicios">Exercícios</button>
       <button class="menu-item" data-view="treinos">Treinos</button>
       <button class="menu-item" data-view="evolucao">Evolução</button>
+      <button class="menu-item" data-view="fotos">Fotos</button>
       <button class="menu-item" data-view="backup">Backup</button>
     </nav>
 
@@ -81,6 +82,7 @@
       <button class="menu-item active" data-view="videos">Vídeos</button>
       <button class="menu-item" data-view="meutreino">Meu Treino</button>
       <button class="menu-item" data-view="evolucao">Evolução</button>
+      <button class="menu-item" data-view="fotos">Fotos</button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -299,6 +301,48 @@
         <h3>Histórico de avaliações</h3>
         <div id="evolutionHistory" class="evolution-history">
           <div class="muted">Nenhuma avaliação encontrada.</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== FOTOS ===== -->
+    <section id="view-fotos" class="view hidden">
+
+      <div id="photosAdminBox" class="card hidden">
+        <h3>Enviar fotos de evolução</h3>
+
+        <div class="row wrap gap">
+          <select id="photoStudent"></select>
+          <input id="photoDate" type="date">
+        </div>
+
+        <div class="photo-upload-grid mt">
+          <div class="photo-upload-card">
+            <label>Frente</label>
+            <input id="photoFront" type="file" accept="image/*">
+          </div>
+
+          <div class="photo-upload-card">
+            <label>Lado</label>
+            <input id="photoSide" type="file" accept="image/*">
+          </div>
+
+          <div class="photo-upload-card">
+            <label>Costas</label>
+            <input id="photoBack" type="file" accept="image/*">
+          </div>
+        </div>
+
+        <div class="row wrap gap mt">
+          <button id="btnSavePhotos" class="btn primary">Salvar fotos</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Galeria de evolução</h3>
+        <div id="photosGallery" class="photos-gallery">
+          <div class="muted">Nenhuma foto encontrada.</div>
         </div>
       </div>
 
