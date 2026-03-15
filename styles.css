@@ -812,6 +812,76 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+/* ================= FOTOS ================= */
+.photo-upload-grid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.photo-upload-card{
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.photo-upload-card label{
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 0.9;
+}
+
+.photos-gallery{
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.photo-entry{
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.photo-entry-title{
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.photo-entry-grid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.photo-thumb-box{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.photo-thumb-box span{
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.photo-thumb-box img{
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: #111;
+  display: block;
+}
+
 /* ================= RESPONSIVO ================= */
 @media(max-width: 900px) {
   .grid3 {
@@ -833,6 +903,14 @@ tbody tr:hover {
 
   .evolution-summary-grid{
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .photo-upload-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .photo-entry-grid{
+    grid-template-columns: 1fr;
   }
 }
 
@@ -912,5 +990,17 @@ tbody tr:hover {
 
   .evolution-entry-grid{
     grid-template-columns: 1fr;
+  }
+
+  .photo-upload-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .photo-entry-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .photo-thumb-box img{
+    height: 220px;
   }
 }
