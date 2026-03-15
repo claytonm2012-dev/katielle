@@ -72,6 +72,7 @@
       <button class="menu-item" data-view="alunos">Alunos</button>
       <button class="menu-item" data-view="exercicios">Exercícios</button>
       <button class="menu-item" data-view="treinos">Treinos</button>
+      <button class="menu-item" data-view="evolucao">Evolução</button>
       <button class="menu-item" data-view="backup">Backup</button>
     </nav>
 
@@ -79,6 +80,7 @@
     <nav id="menuAluno" class="menu hidden">
       <button class="menu-item active" data-view="videos">Vídeos</button>
       <button class="menu-item" data-view="meutreino">Meu Treino</button>
+      <button class="menu-item" data-view="evolucao">Evolução</button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -233,6 +235,73 @@
 
         <div id="planPreview" class="mt"></div>
       </div>
+    </section>
+
+    <!-- ===== EVOLUÇÃO ===== -->
+    <section id="view-evolucao" class="view hidden">
+
+      <!-- VISÃO DO ADMIN -->
+      <div id="evolutionAdminBox" class="card hidden">
+        <h3>Lançar avaliação física</h3>
+
+        <div class="row wrap gap">
+          <select id="evolutionStudent"></select>
+          <input id="evolutionDate" type="date">
+          <input id="evolutionWeight" type="number" step="0.1" placeholder="Peso (kg)">
+          <input id="evolutionArm" type="number" step="0.1" placeholder="Braço (cm)">
+          <input id="evolutionWaist" type="number" step="0.1" placeholder="Cintura (cm)">
+          <input id="evolutionHip" type="number" step="0.1" placeholder="Quadril (cm)">
+          <input id="evolutionThigh" type="number" step="0.1" placeholder="Coxa (cm)">
+        </div>
+
+        <div class="mt">
+          <textarea id="evolutionNotes" placeholder="Observações da personal"></textarea>
+        </div>
+
+        <div class="row wrap gap mt">
+          <button id="btnSaveEvolution" class="btn primary">Salvar avaliação</button>
+        </div>
+      </div>
+
+      <!-- RESUMO -->
+      <div class="card">
+        <h3>Resumo da evolução</h3>
+        <div id="evolutionSummary" class="evolution-summary-grid">
+          <div class="evolution-stat">
+            <span>Último peso</span>
+            <strong id="sumWeight">—</strong>
+          </div>
+          <div class="evolution-stat">
+            <span>Braço</span>
+            <strong id="sumArm">—</strong>
+          </div>
+          <div class="evolution-stat">
+            <span>Cintura</span>
+            <strong id="sumWaist">—</strong>
+          </div>
+          <div class="evolution-stat">
+            <span>Quadril</span>
+            <strong id="sumHip">—</strong>
+          </div>
+          <div class="evolution-stat">
+            <span>Coxa</span>
+            <strong id="sumThigh">—</strong>
+          </div>
+          <div class="evolution-stat">
+            <span>Última avaliação</span>
+            <strong id="sumDate">—</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div class="card">
+        <h3>Histórico de avaliações</h3>
+        <div id="evolutionHistory" class="evolution-history">
+          <div class="muted">Nenhuma avaliação encontrada.</div>
+        </div>
+      </div>
+
     </section>
 
     <!-- ===== VÍDEOS (ALUNO) ===== -->
