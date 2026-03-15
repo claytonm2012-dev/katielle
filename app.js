@@ -974,16 +974,29 @@ async function renderEvolutionStudent() {
 /* =========================
    FOTOS
 ========================= */
-async function loadStudentsForPhotoSelect() {
+async function loadStudentsForPhotoSelect(selectedUid = "") {
   const sel = safeGet("#photoStudent");
   if (!sel) return;
 
+  const currentValue = selectedUid || sel.value || "";
   const students = await loadAllStudents();
+
   sel.innerHTML = "";
 
-  students.forEach(s => {
-    sel.innerHTML += `<option value="${s.uid}">${s.name || s.username || s.uid}</option>`;
+  if (!students.length) {
+    sel.innerHTML = `<option value="">Nenhum aluno encontrado</option>`;
+    return;
+  }
+
+  students.forEach((s, index) => {
+    const label = s.name || s.username || s.uid || `Aluno ${index + 1}`;
+    const selected = currentValue === s.uid ? "selected" : "";
+    sel.innerHTML += `<option value="${s.uid}" ${selected}>${label}</option>`;
   });
+
+  if (!sel.value && students[0]) {
+    sel.value = students[0].uid;
+  }
 }
 
 async function uploadSinglePhoto(file, studentId, date, label) {
@@ -1093,9 +1106,17 @@ async function renderPhotosAdmin() {
     safeGet("#photoDate").value = todayISO();
   }
 
-  await loadStudentsForPhotoSelect();
+  const selectedBeforeReload = safeGet("#photoStudent")?.value || "";
+
+  await loadStudentsForPhotoSelect(selectedBeforeReload);
 
   const studentId = safeGet("#photoStudent")?.value || "";
+
+  if (!studentId) {
+    renderPhotoGallery([]);
+    return;
+  }
+
   const entries = await getPhotoEntries(studentId);
   renderPhotoGallery(entries);
 }
@@ -1514,7 +1535,11 @@ async function init() {
   safeGet("#planGroup") && (safeGet("#planGroup").onchange = fillPlanExercises);
   safeGet("#planStudent") && (safeGet("#planStudent").onchange = renderPlansAdmin);
   safeGet("#evolutionStudent") && (safeGet("#evolutionStudent").onchange = renderEvolutionAdmin);
-  safeGet("#photoStudent") && (safeGet("#photoStudent").onchange = renderPhotosAdmin);
+  safeGet("#photoStudent") && (safeGet("#photoStudent").onchange = async (e) => {
+    const studentId = e.target.value || "";
+    const entries = await getPhotoEntries(studentId);
+    renderPhotoGallery(entries);
+  });
 
   safeGet("#btnAddToPlan") && (safeGet("#btnAddToPlan").onclick = addToPlan);
   safeGet("#btnClearDay") && (safeGet("#btnClearDay").onclick = clearDay);
