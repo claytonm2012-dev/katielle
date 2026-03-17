@@ -8,7 +8,6 @@
 </head>
 <body>
 
-<!-- ================= LOGIN ================= -->
 <section id="loginScreen" class="login">
   <div class="login-card">
 
@@ -28,7 +27,6 @@
 
    <div id="loginMsg" class="login-msg hidden"></div>
 
-    <!-- ADMIN -->
     <div id="formAdmin">
       <label>Usuário</label>
       <input id="loginUser" type="text" placeholder="admin">
@@ -37,7 +35,6 @@
       <button id="btnLoginAdmin" class="btn primary full">Entrar como ADM</button>
     </div>
 
-    <!-- ALUNO -->
     <div id="formAluno" class="hidden">
       <label>Usuário</label>
       <input id="studentUserLogin" type="text">
@@ -50,10 +47,8 @@
   </div>
 </section>
 
-<!-- ================= APP ================= -->
 <section id="app" class="app hidden">
 
-  <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="logo">
@@ -66,7 +61,6 @@
       <div id="statusPill" class="status">OK</div>
     </div>
 
-    <!-- MENU ADM -->
     <nav id="menuAdmin" class="menu">
       <button class="menu-item active" data-view="dashboard">Dashboard</button>
       <button class="menu-item" data-view="alunos">Alunos</button>
@@ -77,7 +71,6 @@
       <button class="menu-item" data-view="backup">Backup</button>
     </nav>
 
-    <!-- MENU ALUNO -->
     <nav id="menuAluno" class="menu hidden">
       <button class="menu-item active" data-view="videos">Vídeos</button>
       <button class="menu-item" data-view="meutreino">Meu Treino</button>
@@ -90,7 +83,6 @@
     </div>
   </aside>
 
-  <!-- ===== MAIN ===== -->
   <main class="main">
 
     <header class="topbar">
@@ -100,7 +92,6 @@
       </div>
     </header>
 
-    <!-- ===== DASHBOARD ===== -->
     <section id="view-dashboard" class="view">
       <div class="grid3">
         <div class="card">
@@ -118,7 +109,6 @@
       </div>
     </section>
 
-    <!-- ===== ALUNOS ===== -->
     <section id="view-alunos" class="view hidden">
       <div class="card">
         <h3>Criar Aluno</h3>
@@ -163,7 +153,6 @@
       </div>
     </section>
 
-    <!-- ===== EXERCÍCIOS (ADM) ===== -->
     <section id="view-exercicios" class="view hidden">
       <div class="card">
         <h3>Exercícios</h3>
@@ -208,7 +197,6 @@
       </div>
     </section>
 
-    <!-- ===== TREINOS (ADM) ===== -->
     <section id="view-treinos" class="view hidden">
       <div class="card">
         <h3>Montar Treino</h3>
@@ -239,10 +227,8 @@
       </div>
     </section>
 
-    <!-- ===== EVOLUÇÃO ===== -->
     <section id="view-evolucao" class="view hidden">
 
-      <!-- VISÃO DO ADMIN -->
       <div id="evolutionAdminBox" class="card hidden">
         <h3>Lançar avaliação física</h3>
 
@@ -265,7 +251,6 @@
         </div>
       </div>
 
-      <!-- RESUMO -->
       <div class="card">
         <h3>Resumo da evolução</h3>
         <div id="evolutionSummary" class="evolution-summary-grid">
@@ -296,7 +281,6 @@
         </div>
       </div>
 
-      <!-- HISTÓRICO -->
       <div class="card">
         <h3>Histórico de avaliações</h3>
         <div id="evolutionHistory" class="evolution-history">
@@ -306,7 +290,6 @@
 
     </section>
 
-    <!-- ===== FOTOS ===== -->
     <section id="view-fotos" class="view hidden">
 
       <div id="photosAdminBox" class="card hidden">
@@ -348,7 +331,6 @@
 
     </section>
 
-    <!-- ===== VÍDEOS (ALUNO) ===== -->
     <section id="view-videos" class="view hidden">
 
       <div class="student-hero" id="welcomeStudentCard">
@@ -372,19 +354,18 @@
         </div>
       </div>
 
-      <!-- ===== NOVO BLOCO DE PROGRESSO ===== -->
       <div class="progress-hero">
         <div class="progress-hero-left">
           <span class="progress-badge">Seu progresso</span>
-          <h3 class="progress-title">Evolução da semana</h3>
+          <h3 class="progress-title">Evolução do Mês</h3>
           <p class="progress-text" id="progressMotivationText">
-            Continue firme no seu treino.
+            Acompanhe sua constância de treinos mensal.
           </p>
         </div>
 
         <div class="progress-hero-right">
           <div class="progress-mini-card">
-            <span class="progress-mini-label">Treinos na semana</span>
+            <span class="progress-mini-label">Check-ins no Mês</span>
             <strong id="weekWorkoutsCount">0</strong>
           </div>
 
@@ -425,7 +406,6 @@
         <div id="studentVideosGrid" class="mt"></div>
       </div>
 
-      <!-- MODAL PLAYER -->
       <div id="videoModal" class="modal hidden">
         <div class="modal-backdrop" id="modalClose"></div>
         <div class="modal-box">
@@ -438,7 +418,6 @@
       </div>
     </section>
 
-    <!-- ===== BACKUP ===== -->
     <section id="view-backup" class="view hidden">
       <div class="card">
         <h3>Backup</h3>
@@ -448,7 +427,6 @@
       </div>
     </section>
 
-    <!-- ===== MEU TREINO (ALUNO) ===== -->
     <section id="view-meutreino" class="view hidden">
       <div class="card">
         <h3>Meu Treino</h3>
@@ -485,6 +463,6 @@
   </div>
 </section>
 
-<script type="module" src="app.js?v=5"></script>
+<script type="module" src="app.js?v=6"></script>
 </body>
 </html>
