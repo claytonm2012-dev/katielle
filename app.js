@@ -1,5 +1,6 @@
 /* =========================================================
-   APP.JS - Plataforma Katielle Amaral (Firebase) - ATUALIZADO (MENSAL)
+   APP.JS - Plataforma Katielle Amaral (Firebase)
+   VERSÃO COMPLETA RESTAURADA - MODO MENSAL
 ========================================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
@@ -129,12 +130,10 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// NOVA LÓGICA MENSAL: Substituindo a lógica semanal anterior
+// ATUALIZADO: Lógica de Início e Fim do Mês
 function getMonthStartAndEnd() {
   const now = new Date();
-  // Primeiro dia do mês atual às 00:00:00
   const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-  // Último dia do mês atual às 23:59:59
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   return { start, end };
 }
@@ -1441,6 +1440,14 @@ async function concludeTodayWorkout() {
     if (btn) btn.disabled = false;
   }
 }
+
+// Backup Export
+safeGet("#btnExport") && (safeGet("#btnExport").onclick = async () => {
+  const snap = await getDocs(exercisesCol);
+  const data = snap.docs.map(d => d.data());
+  safeGet("#backupText").value = JSON.stringify(data, null, 2);
+});
+
 async function updateDashboard() {
   const studentsEl = safeGet("#dashStudents");
   const exercisesEl = safeGet("#dashExercises");
