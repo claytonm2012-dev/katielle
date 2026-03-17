@@ -1,5 +1,5 @@
 /* =========================================================
-   APP.JS - Plataforma Katielle Amaral (Firebase)
+   APP.JS - Plataforma Katielle Amaral (Firebase) - ATUALIZADO (MENSAL)
 ========================================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
@@ -129,19 +129,13 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function getWeekStartAndEnd() {
+// NOVA LÓGICA MENSAL: Substituindo a lógica semanal anterior
+function getMonthStartAndEnd() {
   const now = new Date();
-  const day = now.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(now.getDate() + diffToMonday);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-
+  // Primeiro dia do mês atual às 00:00:00
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  // Último dia do mês atual às 23:59:59
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   return { start, end };
 }
 
@@ -1313,7 +1307,7 @@ async function clearAllPlans() {
 }
 
 /* =========================
-   WORKOUT LOGS / PROGRESSO SEMANAL
+   WORKOUT LOGS / PROGRESSO MENSAL (ALTERADO)
 ========================= */
 
 async function hasWorkoutBeenCompletedToday(uid) {
@@ -1333,10 +1327,11 @@ async function hasWorkoutBeenCompletedToday(uid) {
   });
 }
 
-async function getWeekWorkoutCount(uid) {
+// ALTERADO: Busca o total do mês atual
+async function getMonthWorkoutCount(uid) {
   if (!uid) return 0;
 
-  const { start, end } = getWeekStartAndEnd();
+  const { start, end } = getMonthStartAndEnd();
   const startStr = toDateOnlyString(start);
   const endStr = toDateOnlyString(end);
 
@@ -1354,20 +1349,21 @@ async function getWeekWorkoutCount(uid) {
   }).length;
 }
 
+// ALTERADO: Atualiza a interface para mostrar o progresso mensal
 async function updateStudentWeeklyProgress() {
   const uid = currentUser?.uid;
   if (!uid) return;
 
   try {
-    const weekCount = await getWeekWorkoutCount(uid);
+    const monthCount = await getMonthWorkoutCount(uid);
     const doneToday = await hasWorkoutBeenCompletedToday(uid);
 
-    const weekEl = safeGet("#weekWorkoutsCount");
+    const countEl = safeGet("#weekWorkoutsCount");
     const todayEl = safeGet("#todayWorkoutStatus");
     const btn = safeGet("#finishWorkoutBtn");
     const motivationEl = safeGet("#progressMotivationText");
 
-    if (weekEl) weekEl.textContent = String(weekCount);
+    if (countEl) countEl.textContent = String(monthCount);
     if (todayEl) todayEl.textContent = doneToday ? "Feito ✅" : "Pendente";
 
     if (btn) {
@@ -1378,18 +1374,14 @@ async function updateStudentWeeklyProgress() {
     }
 
     if (motivationEl) {
-      if (weekCount === 0) {
-        motivationEl.textContent =
-          "Seu foco começa hoje. Faça seu primeiro treino da semana.";
-      } else if (weekCount <= 2) {
-        motivationEl.textContent =
-          "Boa constância. Continue treinando para manter o ritmo.";
-      } else if (weekCount <= 4) {
-        motivationEl.textContent =
-          "Ótimo desempenho na semana. Você está evoluindo bem.";
+      if (monthCount === 0) {
+        motivationEl.textContent = "Mês novo! Que tal começar seu primeiro treino hoje?";
+      } else if (monthCount <= 8) {
+        motivationEl.textContent = "Bom começo de mês! Mantenha a constância.";
+      } else if (monthCount <= 15) {
+        motivationEl.textContent = "Metade da meta mensal! Você está no caminho certo.";
       } else {
-        motivationEl.textContent =
-          "Semana excelente. Seu comprometimento está acima da média.";
+        motivationEl.textContent = "Desempenho mensal incrível! Parabéns pelo foco.";
       }
     }
   } catch (e) {
